@@ -32,9 +32,6 @@ def compute_symbol_probabilities(data):
         cumulative_lower_boundaries[symbol] = cumulative_bound
         cumulative_bound += symbol_freq_ratio
 
-    print(f"range: {ranges}")
-    print(f"Cumulative lower boundary: {cumulative_lower_boundaries}")
-
     # the returned ranges and cumulative_lower_boundaries are used to encode the data
     # the ranges are the probabilities of each symbol
     # the cumulative_lower_boundaries are the lower boundaries of each symbol in the cumulative distribution
@@ -55,8 +52,6 @@ def arithmetic_compression(data, ranges, cumulative_lower_boundaries):
         range_size = high - low + 1
         high = low + int(range_size * symbol_high) - 1
         low = low + int(range_size * symbol_low)
-
-        print(f"Symbol: {symbol}, Interval: [{low}, {high}]")
 
         # renormalize the interval to avoid overflow
         # if the high is less than half of the range, we can shift the interval to the left
@@ -150,12 +145,12 @@ def arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, tot
     value = 0
 
     bitstream = iter(bitstream)
-    for _ in ranges(32):
+    for _ in range(32):
         value = (value << 1) | next_bit(bitstream)
 
     decoded_data = []
 
-    for _ in ranges(total_symbols):
+    for _ in range(total_symbols):
         range_size = high - low + 1
         cum_value = ((value - low + 1) * 1.0 / range_size)
 
@@ -200,24 +195,18 @@ def monitor_resources(stop_event, max_cpu, max_memory):
         max_cpu[0] = max(max_cpu[0], cpu_usage)
         max_memory[0] = max(max_memory[0], memory_usage)
 
-def main():
-    if len(sys.argv) != 4:
-        print("Usage: python arithmetic.py <compress|decompress> <input_file> <output_file>")
-        sys.exit(1)
+def show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu, max_memory):
+    print(f"Compression complete. Output of '{input_file}' written to '{output_file}'.")
+    print(f"Compression Ratio: {compression_ratio:.2f}")
+    print(f"Compression Time: {compression_time:.2f} seconds")
+    print(f"Max CPU Usage: {max_cpu:.2f}%")
+    print(f"Max Memory Usage: {max_memory} bytes")
 
-    mode = sys.argv[1]
+def compress_text_file(input_file, output_file):
+    with open(input_file, 'r') as file:
+        data = file.read()
 
-    if mode == 'compress':
-        input_file = sys.argv[2]
-        output_file = sys.argv[3]
-        if not os.path.isfile(input_file):
-            print(f"Error: File '{input_file}' not found.")
-            sys.exit(1)
-
-        with open(input_file, 'r') as file:
-            data = file.read()
-
-         # Initialize variables for monitoring
+        # Initialize variables for monitoring
         max_cpu = [0]
         max_memory = [0]
         stop_event = threading.Event()
@@ -245,11 +234,32 @@ def main():
         # Calculate compression time
         compression_time = end_time - start_time
 
-        print(f"Compression complete. Output written to '{output_file}'.")
-        print(f"Compression Ratio: {compression_ratio:.2f}")
-        print(f"Compression Time: {compression_time:.2f} seconds")
-        print(f"Max CPU Usage: {max_cpu[0]:.2f}%")
-        print(f"Max Memory Usage: {max_memory[0]} bytes")
+        show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
+
+def decompress_text_file(input_file, output_file):
+    bitstream, ranges, cumulative_lower_boundaries, total_symbols = read_bitstream_from_file(input_file)
+    decoded_data = arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, total_symbols)
+
+    with open(output_file, 'w') as file:
+        file.write(''.join(decoded_data))
+
+    print(f"Decompression complete. Decompressed data written to '{output_file}'.")
+
+def main():
+    if len(sys.argv) != 4:
+        print("Usage: python arithmetic.py <compress|decompress> <input_file> <output_file>")
+        sys.exit(1)
+
+    mode = sys.argv[1]
+
+    if mode == 'compress':
+        input_file = sys.argv[2]
+        output_file = sys.argv[3]
+        if not os.path.isfile(input_file):
+            print(f"Error: File '{input_file}' not found.")
+            sys.exit(1)
+
+        compress_text_file(input_file, output_file)
 
     elif mode == 'decompress':
         input_file = sys.argv[2]
@@ -258,13 +268,7 @@ def main():
             print(f"Error: File '{input_file}' not found.")
             sys.exit(1)
 
-        bitstream, ranges, cumulative_lower_boundaries, total_symbols = read_bitstream_from_file(input_file)
-        decoded_data = arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, total_symbols)
-
-        with open(output_file, 'w') as file:
-            file.write(''.join(decoded_data))
-
-        print(f"Decompression complete. Decompressed data written to '{output_file}'.")
+        decompress_text_file(input_file, output_file)
 
     else:
         print("Invalid mode. Use 'compress' or 'decompress'.")
