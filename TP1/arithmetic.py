@@ -1,10 +1,12 @@
-import time
-#import psutil
 import sys
 import os
-import numpy as np
 import struct
-import base64
+import time
+import psutil
+import threading
+
+
+
 
 # Maximum range for encoding
 # Based on : https://github.com/ahmedfgad/ArithmeticEncodingPython/blob/main/pyae.py
@@ -13,14 +15,10 @@ import base64
 MAX_RANGE = 2**32 - 1
 
 ## Calculate frequency table
-def computeSymbolProbabilities(data):
-    # Calculate frequency table
+def compute_symbol_probabilities(data):
     frequency_table = {}
     for symbol in data:
-        if symbol in frequency_table:
-            frequency_table[symbol] += 1
-        else:
-            frequency_table[symbol] = 1
+        frequency_table[symbol] = frequency_table.get(symbol, 0) + 1
 
     total = len(data)
     probabilities = {}
@@ -35,41 +33,29 @@ def computeSymbolProbabilities(data):
 
     return probabilities, cumulative_probabilities
 
-def arithmeticCompression(data, probabilities, cumulative_probabilities):
+def arithmetic_compression(data, probabilities, cumulative_probabilities):
     low = 0
     high = MAX_RANGE
-
-    # Output bitstream
     bitstream = []
     pending_bits = 0
-    compressedCode = []
-
-    encoded_symbols_num = 0
 
     for symbol in data:
-        encoded_symbols_num += 1
         symbol_low = cumulative_probabilities[symbol]
         symbol_high = symbol_low + probabilities[symbol]
-
-        # Update range based on symbol's cumulative probability
         range_size = high - low + 1
         high = low + int(range_size * symbol_high) - 1
         low = low + int(range_size * symbol_low)
 
-        # Store symbol with current low and high values for debugging/compressed code
-        compressedCode.append((symbol, low, high))
-
-        # Normalize the range to avoid precision overflow
         while True:
             if high < 2**31:
                 bitstream.append(0)
-                bitstream += [1] * pending_bits
+                bitstream.extend([1] * pending_bits)
                 pending_bits = 0
                 low <<= 1
                 high = (high << 1) + 1
             elif low >= 2**31:
                 bitstream.append(1)
-                bitstream += [0] * pending_bits
+                bitstream.extend([0] * pending_bits)
                 pending_bits = 0
                 low = (low - 2**31) << 1
                 high = ((high - 2**31) << 1) + 1
@@ -80,37 +66,30 @@ def arithmeticCompression(data, probabilities, cumulative_probabilities):
             else:
                 break
 
-    # Final bits to finalize the range
     pending_bits += 1
     if low < 2**30:
         bitstream.append(0)
-        bitstream += [1] * pending_bits
+        bitstream.extend([1] * pending_bits)
     else:
         bitstream.append(1)
-        bitstream += [0] * pending_bits
+        bitstream.extend([0] * pending_bits)
 
-    return compressedCode, bitstream
+    return bitstream
 
-def writeBitstreamToFile(bitstream, filename, probabilities, cumulative_probabilities, total_symbols):
+def write_bitstream_to_file(bitstream, filename, probabilities, cumulative_probabilities, total_symbols):
     with open(filename, 'wb') as file:
-        # Write the length of the original data
         file.write(struct.pack('I', total_symbols))
-
-        # Write the number of unique symbols
         file.write(struct.pack('I', len(probabilities)))
 
-        # Write the probabilities and cumulative probabilities
         for symbol in probabilities:
             symbol_encoded = symbol.encode('utf-8')
-            file.write(struct.pack('B', len(symbol_encoded)))  # Write the length of the symbol
-            file.write(symbol_encoded)  # Write the symbol itself
-            file.write(struct.pack('d', probabilities[symbol]))  # Write the probability
-            file.write(struct.pack('d', cumulative_probabilities[symbol]))  # Write the cumulative probability
+            file.write(struct.pack('B', len(symbol_encoded)))
+            file.write(symbol_encoded)
+            file.write(struct.pack('d', probabilities[symbol]))
+            file.write(struct.pack('d', cumulative_probabilities[symbol]))
 
-        # Write the bitstream length
         file.write(struct.pack('I', len(bitstream)))
 
-        # Write the bitstream as bytes
         byte = 0
         bit_count = 0
         for bit in bitstream:
@@ -124,15 +103,11 @@ def writeBitstreamToFile(bitstream, filename, probabilities, cumulative_probabil
         if bit_count > 0:
             file.write(struct.pack('B', byte))
 
-def readBitstreamFromFile(filename):
+def read_bitstream_from_file(filename):
     with open(filename, 'rb') as file:
-        # Read the length of the original data
         total_symbols = struct.unpack('I', file.read(4))[0]
-
-        # Read the number of unique symbols
         num_symbols = struct.unpack('I', file.read(4))[0]
 
-        # Read the probabilities and cumulative probabilities
         probabilities = {}
         cumulative_probabilities = {}
         for _ in range(num_symbols):
@@ -143,10 +118,7 @@ def readBitstreamFromFile(filename):
             probabilities[symbol] = probability
             cumulative_probabilities[symbol] = cumulative_probability
 
-        # Read the bitstream length
         bitstream_length = struct.unpack('I', file.read(4))[0]
-
-        # Read the bitstream as bytes
         bitstream = []
         byte = file.read(1)
         while byte:
@@ -156,7 +128,7 @@ def readBitstreamFromFile(filename):
             byte = file.read(1)
         return bitstream[:bitstream_length], probabilities, cumulative_probabilities, total_symbols
 
-def arithmeticDecompression(bitstream, probabilities, cumulative_probabilities, total_symbols):
+def arithmetic_decompression(bitstream, probabilities, cumulative_probabilities, total_symbols):
     MAX_RANGE = 2**32 - 1
     HALF_RANGE = 2**31
     QUARTER_RANGE = 2**30
@@ -165,45 +137,34 @@ def arithmeticDecompression(bitstream, probabilities, cumulative_probabilities, 
     high = MAX_RANGE
     value = 0
 
-    # Initialize the value from the bitstream
-    bitstream = iter(bitstream)  # Ensure bitstream is an iterator
+    bitstream = iter(bitstream)
     for _ in range(32):
         value = (value << 1) | next_bit(bitstream)
 
     decoded_data = []
-    nbr_decoded_symbols = 0
 
     for _ in range(total_symbols):
         range_size = high - low + 1
-        cum_value = ((value - low + 1) * 1.0 / range_size)  # Subtract a tiny value to avoid precision issues
+        cum_value = ((value - low + 1) * 1.0 / range_size)
 
-        # Find the symbol for the current value
         for symbol, cum_prob in cumulative_probabilities.items():
             if cum_prob <= cum_value < cum_prob + probabilities[symbol]:
                 decoded_data.append(symbol)
-                nbr_decoded_symbols += 1
-
                 symbol_low = cumulative_probabilities[symbol]
                 symbol_high = symbol_low + probabilities[symbol]
-
-                # Update the range
                 high = low + int(range_size * symbol_high) - 1
                 low = low + int(range_size * symbol_low)
 
-                # Normalize range
                 while True:
                     if high < HALF_RANGE:
-                        # high and low are in the lower half
                         low <<= 1
                         high = (high << 1) + 1
                         value = (value << 1) | next_bit(bitstream)
                     elif low >= HALF_RANGE:
-                        # high and low are in the upper half
                         low = (low - HALF_RANGE) << 1
                         high = ((high - HALF_RANGE) << 1) + 1
                         value = ((value - HALF_RANGE) << 1) | next_bit(bitstream)
                     elif low >= QUARTER_RANGE and high < HALF_RANGE + QUARTER_RANGE:
-                        # low is in the upper quarter and high is in the lower quarter
                         low = (low - QUARTER_RANGE) << 1
                         high = ((high - QUARTER_RANGE) << 1) + 1
                         value = ((value - QUARTER_RANGE) << 1) | next_bit(bitstream)
@@ -211,48 +172,30 @@ def arithmeticDecompression(bitstream, probabilities, cumulative_probabilities, 
                         break
                 break
 
-    print(f"Decoded {nbr_decoded_symbols} symbols")
     return decoded_data
 
 def next_bit(bitstream):
     try:
         return next(bitstream)
     except StopIteration:
-        return 0  # Return 0 if the bitstream is exhausted
+        return 0
 
-def readProbabilitiesFromFile(filename):
-    probabilities = {}
-    cumulative_probabilities = {}
-    total_prob = 0.0
-
-    with open(filename, 'r') as file:
-        lines = file.readlines()
-        for line in lines[1:]:  # Skip the first line
-            parts = line.split()
-            if len(parts) == 3:
-                symbol, prob, cum_prob = parts
-                probabilities[symbol] = float(prob)
-                cumulative_probabilities[symbol] = float(cum_prob)
-            elif len(parts) == 2:
-                symbol, prob = parts
-                probabilities[symbol] = float(prob)
-                cumulative_probabilities[symbol] = total_prob
-                total_prob += float(prob)
-            else:
-                print(f"Skipping malformed line: {line.strip()}")
-
-    return probabilities, cumulative_probabilities
+def monitor_resources(stop_event, max_cpu, max_memory):
+    process = psutil.Process(os.getpid())
+    while not stop_event.is_set():
+        cpu_usage = process.cpu_percent(interval=0.1)
+        memory_usage = process.memory_info().rss
+        max_cpu[0] = max(max_cpu[0], cpu_usage)
+        max_memory[0] = max(max_memory[0], memory_usage)
 
 def main():
-    # Check if the correct number of arguments is provided
     if len(sys.argv) != 4:
-        print("Usage: python script.py <compress|decompress> <input_file> <output_file>")
+        print("Usage: python arithmetic.py <compress|decompress> <input_file> <output_file>")
         sys.exit(1)
 
     mode = sys.argv[1]
 
     if mode == 'compress':
-        print("Compressing data...")
         input_file = sys.argv[2]
         output_file = sys.argv[3]
         if not os.path.isfile(input_file):
@@ -262,26 +205,49 @@ def main():
         with open(input_file, 'r') as file:
             data = file.read()
 
-        probabilities, cumulative_probabilities = computeSymbolProbabilities(data)
-        compressedCode, bit_output = arithmeticCompression(data, probabilities, cumulative_probabilities)
+         # Initialize variables for monitoring
+        max_cpu = [0]
+        max_memory = [0]
+        stop_event = threading.Event()
+        monitor_thread = threading.Thread(target=monitor_resources, args=(stop_event, max_cpu, max_memory))
+        monitor_thread.start()
 
-        writeBitstreamToFile(bit_output, output_file, probabilities, cumulative_probabilities, len(data))
+        start_time = time.time()
+
+        probabilities, cumulative_probabilities = compute_symbol_probabilities(data)
+        bit_output = arithmetic_compression(data, probabilities, cumulative_probabilities)
+
+        end_time = time.time()
+
+        # Stop monitoring
+        stop_event.set()
+        monitor_thread.join()
+
+        write_bitstream_to_file(bit_output, output_file, probabilities, cumulative_probabilities, len(data))
+
+        # Calculate compression ratio
+        original_size = os.path.getsize(input_file)
+        compressed_size = os.path.getsize(output_file)
+        compression_ratio = 1 - (compressed_size / original_size)
+
+        # Calculate compression time
+        compression_time = end_time - start_time
 
         print(f"Compression complete. Output written to '{output_file}'.")
+        print(f"Compression Ratio: {compression_ratio:.2f}")
+        print(f"Compression Time: {compression_time:.2f} seconds")
+        print(f"Max CPU Usage: {max_cpu[0]:.2f}%")
+        print(f"Max Memory Usage: {max_memory[0]} bytes")
 
     elif mode == 'decompress':
-        print("Decompressing data...")
         input_file = sys.argv[2]
         output_file = sys.argv[3]
         if not os.path.isfile(input_file):
             print(f"Error: File '{input_file}' not found.")
             sys.exit(1)
 
-        bitstream, probabilities, cumulative_probabilities, total_symbols = readBitstreamFromFile(input_file)
-
-        print(f"total_symbols: {total_symbols}")
-
-        decoded_data = arithmeticDecompression(bitstream, probabilities, cumulative_probabilities, total_symbols)
+        bitstream, probabilities, cumulative_probabilities, total_symbols = read_bitstream_from_file(input_file)
+        decoded_data = arithmetic_decompression(bitstream, probabilities, cumulative_probabilities, total_symbols)
 
         with open(output_file, 'w') as file:
             file.write(''.join(decoded_data))
