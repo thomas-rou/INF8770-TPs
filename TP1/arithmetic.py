@@ -338,12 +338,12 @@ def main():
         sys.exit(1)
 
     if mode == 'compress':
-        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif')):
             compress_image_file(input_file, output_file)
         else:
             compress_text_file(input_file, output_file)
     elif mode == 'decompress':
-        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif')):
             decompress_image_file(input_file, output_file)
         else:
             decompress_text_file(input_file, output_file)
