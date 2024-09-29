@@ -251,7 +251,7 @@ def compress_text_file(input_file, output_file):
         compression_ratio = 1 - (compressed_size / original_size)
         compression_time = end_time - start_time
 
-        show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
+        # show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
 
 def decompress_text_file(input_file, output_file):
     bitstream, ranges, cumulative_lower_boundaries, total_symbols = read_bitstream_from_file(input_file)
