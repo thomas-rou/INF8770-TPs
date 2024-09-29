@@ -4,7 +4,9 @@ import struct
 import time
 import psutil
 import threading
-
+import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
 
 # Maximum range for encoding
 # Based on : https://github.com/ahmedfgad/ArithmeticEncodingPython/blob/main/pyae.py
@@ -87,15 +89,22 @@ def arithmetic_compression(data, ranges, cumulative_lower_boundaries):
 
     return bitstream
 
-def write_bitstream_to_file(bitstream, filename, ranges, cumulative_lower_boundaries, total_symbols):
+def write_bitstream_to_file(bitstream, filename, ranges, cumulative_lower_boundaries, total_symbols, is_image=False, width=None, height=None, mode=None):
     with open(filename, 'wb') as file:
+        if is_image and width is not None and height is not None:
+            file.write(struct.pack('I', width))
+            file.write(struct.pack('I', height))
+            file.write(mode.encode('utf-8'))
         file.write(struct.pack('I', total_symbols))
         file.write(struct.pack('I', len(ranges)))
 
         for symbol in ranges:
-            symbol_encoded = symbol.encode('utf-8')
-            file.write(struct.pack('B', len(symbol_encoded)))
-            file.write(symbol_encoded)
+            if is_image:
+                file.write(struct.pack('B', symbol))
+            else:
+                symbol_encoded = symbol.encode('utf-8')
+                file.write(struct.pack('B', len(symbol_encoded)))
+                file.write(symbol_encoded)
             file.write(struct.pack('d', ranges[symbol]))
             file.write(struct.pack('d', cumulative_lower_boundaries[symbol]))
 
@@ -114,16 +123,25 @@ def write_bitstream_to_file(bitstream, filename, ranges, cumulative_lower_bounda
         if bit_count > 0:
             file.write(struct.pack('B', byte))
 
-def read_bitstream_from_file(filename):
+def read_bitstream_from_file(filename, is_image=False):
     with open(filename, 'rb') as file:
+        width = height = None
+        mode = None
+        if is_image:
+            width = struct.unpack('I', file.read(4))[0]
+            height = struct.unpack('I', file.read(4))[0]
+            mode = file.read(3).decode('utf-8')
         total_symbols = struct.unpack('I', file.read(4))[0]
         num_symbols = struct.unpack('I', file.read(4))[0]
 
         probabilities = {}
         cumulative_probabilities = {}
         for _ in range(num_symbols):
-            symbol_length = struct.unpack('B', file.read(1))[0]
-            symbol = file.read(symbol_length).decode('utf-8')
+            if is_image:
+                symbol = struct.unpack('B', file.read(1))[0]
+            else:
+                symbol_length = struct.unpack('B', file.read(1))[0]
+                symbol = file.read(symbol_length).decode('utf-8')
             probability = struct.unpack('d', file.read(8))[0]
             cumulative_probability = struct.unpack('d', file.read(8))[0]
             probabilities[symbol] = probability
@@ -137,7 +155,10 @@ def read_bitstream_from_file(filename):
             for i in range(8):
                 bitstream.append((byte >> (7 - i)) & 1)
             byte = file.read(1)
-        return bitstream[:bitstream_length], probabilities, cumulative_probabilities, total_symbols
+        if is_image:
+            return bitstream[:bitstream_length], probabilities, cumulative_probabilities, total_symbols, width, height, mode
+        else:
+            return bitstream[:bitstream_length], probabilities, cumulative_probabilities, total_symbols
 
 def arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, total_symbols):
     low = 0
@@ -145,7 +166,7 @@ def arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, tot
     value = 0
 
     bitstream = iter(bitstream)
-    for _ in range(32):
+    for _ in range(24):
         value = (value << 1) | next_bit(bitstream)
 
     decoded_data = []
@@ -220,18 +241,14 @@ def compress_text_file(input_file, output_file):
 
         end_time = time.time()
 
-        # Stop monitoring
         stop_event.set()
         monitor_thread.join()
 
         write_bitstream_to_file(bit_output, output_file, ranges, cumulative_lower_boundaries, len(data))
 
-        # Calculate compression ratio
         original_size = os.path.getsize(input_file)
         compressed_size = os.path.getsize(output_file)
         compression_ratio = 1 - (compressed_size / original_size)
-
-        # Calculate compression time
         compression_time = end_time - start_time
 
         show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
@@ -245,31 +262,89 @@ def decompress_text_file(input_file, output_file):
 
     print(f"Decompression complete. Decompressed data written to '{output_file}'.")
 
+def compress_image_file(input_file, output_file):
+    image = Image.open(input_file)
+    mode = image.mode
+    data = np.array(image).flatten()
+    width, height = image.size
+    print(f"Compressing image '{input_file}' with dimensions: {width}x{height} and mode: {mode}...")
+
+    max_cpu = [0]
+    max_memory = [0]
+    stop_event = threading.Event()
+    monitor_thread = threading.Thread(target=monitor_resources, args=(stop_event, max_cpu, max_memory))
+    monitor_thread.start()
+
+    start_time = time.time()
+
+    ranges, cumulative_lower_boundaries = compute_symbol_probabilities(data)
+    bit_output = arithmetic_compression(data, ranges, cumulative_lower_boundaries)
+
+    end_time = time.time()
+
+    stop_event.set()
+    monitor_thread.join()
+
+    write_bitstream_to_file(bit_output, output_file, ranges, cumulative_lower_boundaries, len(data), is_image=True, width=width, height=height, mode=mode)
+
+    original_size = os.path.getsize(input_file)
+    compressed_size = os.path.getsize(output_file)
+    compression_ratio = 1 - (compressed_size / original_size)
+    compression_time = end_time - start_time
+
+    show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
+
+def decompress_image_file(input_file, output_file):
+    bitstream, ranges, cumulative_lower_boundaries, total_symbols, width, height, mode = read_bitstream_from_file(input_file, is_image=True)
+    decoded_data = arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, total_symbols)
+    decoded_data = np.array(decoded_data, dtype=np.uint8)
+
+    if width is None or height is None:
+        # Fallback to square assumption if dimensions are not stored
+        image_size = int(np.sqrt(total_symbols))
+        decoded_image = decoded_data.reshape((image_size, image_size))
+    else:
+        print(f"Decompressed image dimensions: {width}x{height} and mode: {mode}")
+        if mode == 'L':
+            decoded_image = decoded_data.reshape((height, width))
+        else:
+            decoded_image = decoded_data.reshape((height, width, len(mode)))
+
+    decoded_image = Image.fromarray(decoded_image, mode)
+    decoded_image.save(output_file)
+
+    print(f"Decompression complete. Decompressed image written to '{output_file}'.")
+
+    # Display the decompressed image
+    plt.imshow(decoded_image, cmap="gray" if mode == 'L' else None)
+    plt.title("Reconstructed Image")
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
 def main():
     if len(sys.argv) != 4:
         print("Usage: python arithmetic.py <compress|decompress> <input_file> <output_file>")
         sys.exit(1)
 
     mode = sys.argv[1]
+    input_file = sys.argv[2]
+    output_file = sys.argv[3]
+
+    if not os.path.isfile(input_file):
+        print(f"Error: File '{input_file}' not found.")
+        sys.exit(1)
 
     if mode == 'compress':
-        input_file = sys.argv[2]
-        output_file = sys.argv[3]
-        if not os.path.isfile(input_file):
-            print(f"Error: File '{input_file}' not found.")
-            sys.exit(1)
-
-        compress_text_file(input_file, output_file)
-
+        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+            compress_image_file(input_file, output_file)
+        else:
+            compress_text_file(input_file, output_file)
     elif mode == 'decompress':
-        input_file = sys.argv[2]
-        output_file = sys.argv[3]
-        if not os.path.isfile(input_file):
-            print(f"Error: File '{input_file}' not found.")
-            sys.exit(1)
-
-        decompress_text_file(input_file, output_file)
-
+        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+            decompress_image_file(input_file, output_file)
+        else:
+            decompress_text_file(input_file, output_file)
     else:
         print("Invalid mode. Use 'compress' or 'decompress'.")
         sys.exit(1)
