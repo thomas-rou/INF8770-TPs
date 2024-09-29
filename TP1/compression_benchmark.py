@@ -39,7 +39,7 @@ def run_compression(input_file, output_file, is_image=False):
 def main():
     text_input_dir = 'Test-Files/Text-Files/'
     image_input_dir = 'Test-Files/Image-Files/'
-    output_dir = 'Compressed-Files/'
+    output_dir = 'Test-Files/Compressed-Files/'
     os.makedirs(output_dir, exist_ok=True)
 
     text_files = [f for f in os.listdir(text_input_dir) if f.endswith('.txt')]

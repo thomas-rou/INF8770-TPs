@@ -294,7 +294,7 @@ def compress_image_file(input_file, output_file):
     compression_ratio = 1 - (compressed_size / original_size)
     compression_time = end_time - start_time
 
-    show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
+    #show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
 
 def decompress_image_file(input_file, output_file):
     bitstream, ranges, cumulative_lower_boundaries, total_symbols, width, height, mode = read_bitstream_from_file(input_file, is_image=True)
@@ -343,7 +343,7 @@ def main():
         else:
             compress_text_file(input_file, output_file)
     elif mode == 'decompress':
-        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif')):
+        if input_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.tiff.compressed', '.tif.compressed')):
             decompress_image_file(input_file, output_file)
         else:
             decompress_text_file(input_file, output_file)
