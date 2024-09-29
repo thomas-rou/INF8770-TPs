@@ -134,10 +134,6 @@ def read_bitstream_from_file(filename, is_image=False):
         total_symbols = struct.unpack('I', file.read(4))[0]
         num_symbols = struct.unpack('I', file.read(4))[0]
 
-        print(f"Reading {num_symbols} symbols from file...")
-        print(f"Total symbols: {total_symbols}")
-        print(f"Image dimensions: {width}x{height}")
-
         probabilities = {}
         cumulative_probabilities = {}
         for _ in range(num_symbols):
@@ -285,8 +281,6 @@ def compress_image_file(input_file, output_file):
     ranges, cumulative_lower_boundaries = compute_symbol_probabilities(data)
     bit_output = arithmetic_compression(data, ranges, cumulative_lower_boundaries)
 
-    print(f"Compressed image data with {len(ranges)} symbols.")
-    print(f"cumulative_lower_boundaries: {cumulative_lower_boundaries}")
 
     end_time = time.time()
 
@@ -304,20 +298,19 @@ def compress_image_file(input_file, output_file):
 
 def decompress_image_file(input_file, output_file):
     bitstream, ranges, cumulative_lower_boundaries, total_symbols, width, height, mode = read_bitstream_from_file(input_file, is_image=True)
-    bitstream_length = len(bitstream)
-    print(f"bitstream: {bitstream_length}")
     decoded_data = arithmetic_decompression(bitstream, ranges, cumulative_lower_boundaries, total_symbols)
     decoded_data = np.array(decoded_data, dtype=np.uint8)
 
     if width is None or height is None:
         # Fallback to square assumption if dimensions are not stored
         image_size = int(np.sqrt(total_symbols))
-        decoded_image = decoded_data.reshape((image_size, image_size))
+        width = height = image_size
+
+    # Properly reshape for grayscale ('L') and RGB modes
+    if mode.strip().upper() == 'L':
+        decoded_image = decoded_data.reshape((height, width))  # Grayscale, 1 channel
     else:
-        if mode == 'L' :
-            decoded_image = decoded_data.reshape((height, width))
-        else:
-            decoded_image = decoded_data.reshape((height, width, len(mode)))
+        decoded_image = decoded_data.reshape((height, width, len(mode)))  # RGB or other modes
 
     decoded_image = Image.fromarray(decoded_image, mode)
     decoded_image.save(output_file)
