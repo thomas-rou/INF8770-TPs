@@ -2,6 +2,7 @@ import os
 import time
 import threading
 import psutil
+import math
 from Compression_Arithmetic.Arithmetic import ArithmeticCompressor
 from Compression_LZ77.LZ77_tests import LZ77Compressor
 
@@ -14,31 +15,48 @@ def monitor_resources(stop_event, max_cpu, max_memory):
         max_memory[0] = max(max_memory[0], memory_usage)
 
 def measure_resources(compression_method, input_file_path, compressed_file_path):
+    # Get the process object for the current process
+    process = psutil.Process(os.getpid())
+
+    # CPU times before starting the compression
+    start_cpu_times = process.cpu_times()
+
+    # Variables for maximum CPU and memory usage
     max_cpu = [0]
     max_memory = [0]
     stop_event = threading.Event()
     monitor_thread = threading.Thread(target=monitor_resources, args=(stop_event, max_cpu, max_memory))
     monitor_thread.start()
 
-    start_time = time.time()
+    # Perform compression
     compression_method(input_file_path, compressed_file_path)
-    end_time = time.time()
 
+    # Stop monitoring thread
     stop_event.set()
     monitor_thread.join()
 
-    compression_time = end_time - start_time
-    cpu_usage_percent = max_cpu[0]
+    # CPU times after compression finishes
+    end_cpu_times = process.cpu_times()
+
+    # Calculate CPU time (user + system)
+    user_time = end_cpu_times.user - start_cpu_times.user
+    system_time = end_cpu_times.system - start_cpu_times.system
+    active_cpu_time = user_time + system_time
+
+    # Maximum memory usage during compression
     mem_usage = max_memory[0] / (1024 * 1024)  # Convert to MiB
 
-    return cpu_usage_percent, mem_usage, compression_time
+    return max_cpu[0], mem_usage, active_cpu_time
 
 def perform_compression(compressor, input_file_path, compressed_file_path, is_image=False):
     print("\n=== Compression ===")
-    if is_image:
-        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_image_file, input_file_path, compressed_file_path)
+    if compressor.__class__.__name__ == 'ArithmeticCompressor':
+        if is_image:
+            cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_image_file, input_file_path, compressed_file_path)
+        else:
+            cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_text_file, input_file_path, compressed_file_path)
     else:
-        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_text_file, input_file_path, compressed_file_path)
+        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress, input_file_path, compressed_file_path)
 
     compressed_file_size = os.path.getsize(compressed_file_path)
     print(f"Taille du fichier compressé : {math.ceil(compressed_file_size / 1024)} KB")
