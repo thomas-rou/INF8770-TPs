@@ -1,150 +1,148 @@
+import logging
 import os
 import math
 import time
 import psutil
-from bitarray import bitarray
 from memory_profiler import memory_usage
+import bitarray
 
-# La classe LZ77Compressor contenant l'algorithme de compression et décompression LZ77 en python 
-# provient du repo GitHub suivant : https://github.com/manassra/LZ77-Compressor/tree/master
-class LZ77Compressor:
-    """
-    A simplified implementation of the LZ77 Compression Algorithm
-    """
-    MAX_WINDOW_SIZE = 400
 
-    def __init__(self, window_size=20):
-        self.window_size = min(window_size, self.MAX_WINDOW_SIZE)
-        self.lookahead_buffer_size = 15  # length of match is at most 4 bits
+# L'algorithme LZ77 utilisé ci-dessous est tiré de celui-ci : https://github.com/TimGuite/lz77/tree/master
+def compress(
+    input_data: bytes, max_offset: int = 2047, max_length: int = 31
+) -> [(int, int, bytes)]:
+    """Compress the input data into a list of length, offset, char values"""
+    
+    # Convert input data to a bytearray
+    input_array = bytearray(input_data)
 
-    def compress(self, input_file_path, output_file_path=None, verbose=False):
-        data = None
-        i = 0
-        output_buffer = bitarray(endian='big')
+    # Create a bytearray for the sliding window
+    window = bytearray()
 
-        try:
-            with open(input_file_path, 'rb') as input_file:
-                data = input_file.read()
-        except IOError:
-            print('Could not open input file ...')
-            raise
+    ## Store output in this list
+    output = []
 
-        while i < len(data):
-            match = self.findLongestMatch(data, i)
+    while len(input_array) > 0:
+        length, offset = best_length_offset(window, input_array, max_length, max_offset)
+        char = input_array[0:1]  # Take the first byte
+        output.append((offset, length, char))
+        window.extend(input_array[:length])
+        input_array = input_array[length:]
 
-            if match:
-                (bestMatchDistance, bestMatchLength) = match
+    return output
 
-                output_buffer.append(True)
-                output_buffer.frombytes(bytes([bestMatchDistance >> 4]))
-                output_buffer.frombytes(bytes([((bestMatchDistance & 0xf) << 4) | bestMatchLength]))
+def to_bytes(
+    compressed_representation: [(int, int, bytes)],
+    offset_bits: int = 11,
+    length_bits: int = 5,
+) -> bytearray:
+    """Turn the compression representation into a byte array"""
+    output = bytearray()
 
-                if verbose:
-                    print("<1, %i, %i>" % (bestMatchDistance, bestMatchLength), end='')
+    assert (
+        offset_bits + length_bits
+    ) % 8 == 0, f"Please provide offset_bits and length_bits which add up to a multiple of 8, so they can be efficiently packed. Received {offset_bits} and {length_bits}."
+    offset_length_bytes = int((offset_bits + length_bits) / 8)
 
-                i += bestMatchLength
-            else:
-                output_buffer.append(False)
-                output_buffer.frombytes(bytes([data[i]]))
+    for value in compressed_representation:
+        offset, length, char = value
+        assert (
+            offset < 2 ** offset_bits
+        ), f"Offset of {offset} is too large, only have {offset_bits} to store this value"
+        assert (
+            length < 2 ** length_bits
+        ), f"Length of {length} is too large, only have {length_bits} to store this value"
 
-                if verbose:
-                    print("<0, %s>" % data[i], end='')
+        offset_length_value = (offset << length_bits) + length
+        logging.debug(f"Offset: {offset}")
+        logging.debug(f"Length: {length}")
+        logging.debug(f"Offset and length: 0b{offset_length_value:b}")
 
-                i += 1
+        for count in range(offset_length_bytes):
+            output.append(
+                (offset_length_value >> (8 * (offset_length_bytes - count - 1)))
+                & (0b11111111)
+            )
 
-        output_buffer.fill()
+        if char is not None:
+            if offset == 0:
+                output.extend(char)
+        else:
+            output.append(0)
 
-        if output_file_path:
-            try:
-                with open(output_file_path, 'wb') as output_file:
-                    output_file.write(output_buffer.tobytes())
-                    print("File was compressed successfully and saved to output path ...")
-                    return None
-            except IOError:
-                print('Could not write to output file path. Please check if the path is correct ...')
-                raise
+    return output
 
-        return output_buffer
+def best_length_offset(
+    window: bytearray, input_array: bytearray, max_length: int = 15, max_offset: int = 4095
+) -> (int, int):
+    """Take the window and an input array and return the offset and length
+    with the biggest length of the input array as a substring"""
 
-    def decompress(self, input_file_path, output_file_path=None):
-        data = bitarray(endian='big')
-        output_buffer = []
+    if max_offset < len(window):
+        cut_window = window[-max_offset:]
+    else:
+        cut_window = window
 
-        try:
-            with open(input_file_path, 'rb') as input_file:
-                data.fromfile(input_file)
-        except IOError:
-            print('Could not open input file ...')
-            raise
+    # Return (0, 0) if the input array is empty
+    if len(input_array) == 0:
+        return (0, 0)
 
-        while len(data) >= 9:
-            flag = data.pop(0)
+    # Initialise result parameters - best case so far
+    length, offset = (1, 0)
 
-            if not flag:
-                byte = data[0:8].tobytes()
-                output_buffer.append(byte)
-                del data[0:8]
-            else:
-                byte1 = ord(data[0:8].tobytes())
-                byte2 = ord(data[8:16].tobytes())
+    # This should also catch the empty window case
+    if input_array[0:1] not in cut_window:
+        best_length = repeating_length_from_start(input_array[0:1], input_array[1:])
+        return (min((length + best_length), max_length), offset)
 
-                del data[0:16]
-                distance = (byte1 << 4) | (byte2 >> 4)
-                length = (byte2 & 0xf)
+    # Best length now zero to allow occurrences to take priority
+    length = 0
 
-                for i in range(length):
-                    output_buffer.append(output_buffer[-distance])
+    # Test for every string in the window, in reverse order to keep the offset as low as possible
+    for index in range(1, (len(cut_window) + 1)):
+        # Get the character at this offset
+        char = cut_window[-index:-index + 1]
+        if char == input_array[0:1]:
+            found_offset = index
+            # Collect any further strings which can be found
+            found_length = repeating_length_from_start(
+                cut_window[-index:], input_array
+            )
+            if found_length > length:
+                length = found_length
+                offset = found_offset
 
-        out_data = b''.join(output_buffer)
+    return (min(length, max_length), offset)
 
-        if output_file_path:
-            try:
-                with open(output_file_path, 'wb') as output_file:
-                    output_file.write(out_data)
-                    print('File was decompressed successfully and saved to output path ...')
-                    return None
-            except IOError:
-                print('Could not write to output file path. Please check if the path is correct ...')
-                raise
-        return out_data
+def repeating_length_from_start(window: bytearray, input_array: bytearray) -> int:
+    """Get the maximum repeating length of the input from the start of the window"""
+    if len(window) == 0 or len(input_array) == 0:
+        return 0
 
-    def findLongestMatch(self, data, current_position):
-        end_of_buffer = min(current_position + self.lookahead_buffer_size, len(data) + 1)
-        best_match_distance = -1
-        best_match_length = -1
+    length = 0
+    while length < len(window) and length < len(input_array) and window[length] == input_array[length]:
+        length += 1
 
-        for j in range(current_position + 2, end_of_buffer):
-            start_index = max(0, current_position - self.window_size)
-            substring = data[current_position:j]
+    return length
 
-            for i in range(start_index, current_position):
-                repetitions = len(substring) // (current_position - i)
-                last = len(substring) % (current_position - i)
-                matched_string = data[i:current_position] * repetitions + data[i:i + last]
 
-                if matched_string == substring and len(substring) > best_match_length:
-                    best_match_distance = current_position - i
-                    best_match_length = len(substring)
+def compress_file(input_file: str, output_file: str):
+    """Open and read an input file, compress it, and write the compressed
+    values to the output file"""
+    try:
+        with open(input_file, 'rb') as f:
+            input_array = f.read()
+    except FileNotFoundError:
+        print(f"Could not find input file at: {input_file}")
+        raise
+    except Exception:
+        raise
 
-        if best_match_distance > 0 and best_match_length > 0:
-            return (best_match_distance, best_match_length)
-        return None
+    compressed_input = to_bytes(compress(input_array))
 
-def measure_cpu_usage(func, *args):
-    process = psutil.Process()
-
-    process.cpu_percent(interval=None)
-    time.sleep(0.1)
-
-    start_time = time.time()
-    func(*args)
-    end_time = time.time()
-
-    cpu_percent = process.cpu_percent(interval=None)
-    elapsed_time = end_time - start_time
-
-    return cpu_percent, elapsed_time
-
+    with open(output_file, "wb") as f:
+        f.write(compressed_input)
+        
 def get_file_paths():
     file_type = input("Voulez-vous compresser une image ou un fichier texte ? (image/texte) : ").strip().lower()
     if file_type not in ['image', 'texte']:
@@ -161,7 +159,7 @@ def get_file_paths():
         decompressed_file_path += '.txt'
 
     return input_file_path, compressed_file_path, decompressed_file_path
-
+        
 def print_file_size(file_path, description):
     try:
         file_size = os.path.getsize(file_path)
@@ -169,63 +167,59 @@ def print_file_size(file_path, description):
     except FileNotFoundError:
         print(f"Le fichier {file_path} est introuvable. Veuillez vérifier le chemin.")
         raise
+    
+def measure_cpu_usage(func, *args):
+    process = psutil.Process()
 
-def perform_compression(compressor, input_file_path, compressed_file_path):
-    print("\n=== Compression ===")
+    process.cpu_percent(interval=None)
+    time.sleep(0.1)
+
+    start_time = time.time()
+    func(*args)
+    end_time = time.time()
+
+    cpu_percent = process.cpu_percent(interval=None)
+    elapsed_time = end_time - start_time
+
+    return cpu_percent, elapsed_time
+    
+def perform_compression(input_file_path, compressed_file_path):
+    print("\n=== Mesure du temps de compression ===")
+    
+    # Mesurer le temps de compression
     compression_start_time = time.time()
-    mem_usage = memory_usage((compressor.compress, (input_file_path, compressed_file_path)), interval=0.1)
+    compress_file(input_file_path, compressed_file_path)
     compression_end_time = time.time()
-    cpu_usage_percent, _ = measure_cpu_usage(compressor.compress, input_file_path, compressed_file_path)
-
+    
     compressed_file_size = os.path.getsize(compressed_file_path)
     print(f"Taille du fichier compressé : {math.ceil(compressed_file_size / 1024)} KB")
     print(f"Temps de compression : {compression_end_time - compression_start_time} secondes")
+    
+    # Mesurer la mémoire et le CPU utilisés pendant la compression
+    print("\n=== Mesure de la mémoire et du CPU ===")
+    mem_usage = memory_usage((compress_file, (input_file_path, compressed_file_path)), interval=0.1)
+    cpu_usage_percent, _ = measure_cpu_usage(compress_file, input_file_path, compressed_file_path)
+
     print(f"Mémoire maximale utilisée pendant la compression : {max(mem_usage)} MiB")
     print(f"Pourcentage moyen d'utilisation du CPU pendant la compression : {cpu_usage_percent}%")
-
+    
     return compression_end_time - compression_start_time, compressed_file_size
-
-def perform_decompression(compressor, compressed_file_path, decompressed_file_path):
-    print("\n=== Décompression ===")
-    decompression_start_time = time.time()
-    mem_usage = memory_usage((compressor.decompress, (compressed_file_path, decompressed_file_path)), interval=0.1)
-    decompression_end_time = time.time()
-    cpu_usage_percent, _ = measure_cpu_usage(compressor.decompress, compressed_file_path, decompressed_file_path)
-
-    print(f"Temps de décompression : {decompression_end_time - decompression_start_time} secondes")
-    print(f"Mémoire maximale utilisée pendant la décompression : {max(mem_usage)} MiB")
-    print(f"Pourcentage moyen d'utilisation du CPU pendant la décompression : {cpu_usage_percent}%")
-
-    return decompression_end_time - decompression_start_time
-
+    
 def calculate_compression_ratio(initial_size, compressed_size):
     compression_ratio = ((initial_size - compressed_size) / initial_size) * 100
     print(f"Taux de compression : {round(compression_ratio, 2)} %")
-
+        
 def main():
-    try:
-        input_file_path, compressed_file_path, decompressed_file_path = get_file_paths()
-        window_size = int(input("Veuillez entrer la taille de la fenêtre (20 par défaut) : ") or 20)
-
-        compressor = LZ77Compressor(window_size)
-
-        # Affiche la taille initiale du fichier
-        print_file_size(input_file_path, "Taille initiale du fichier")
-
-        # Effectue la compression
-        initial_file_size = os.path.getsize(input_file_path)
-        compression_time, compressed_file_size = perform_compression(compressor, input_file_path, compressed_file_path)
-
-        # Calcule le taux de compression
-        calculate_compression_ratio(initial_file_size, compressed_file_size)
-
-        # Effectue la décompression
-        perform_decompression(compressor, compressed_file_path, decompressed_file_path)
-
-    except ValueError as e:
-        print(e)
-    except FileNotFoundError:
-        pass
-
-if __name__ == '__main__':
+    input_file_path, compressed_file_path, decompressed_file_path = get_file_paths()
+    
+    # Afficher la taille du fichier original
+    print_file_size(input_file_path, "Taille originale du fichier")
+    
+    initial_file_size = os.path.getsize(input_file_path)
+    compression_time, compressed_file_size = perform_compression(input_file_path, compressed_file_path)
+    
+    # Afficher le taux de compression
+    calculate_compression_ratio(initial_file_size, compressed_file_size)
+    
+if __name__ == "__main__":
     main()
