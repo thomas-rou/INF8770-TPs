@@ -243,7 +243,7 @@ class ArithmeticCompressor:
             compression_ratio = 1 - (compressed_size / original_size)
             compression_time = end_time - start_time
 
-            self.show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
+            #self.show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
 
     def decompress_text_file(self, input_file, output_file):
         bitstream, ranges, cumulative_lower_boundaries, total_symbols = self.read_bitstream_from_file(input_file)
@@ -284,7 +284,7 @@ class ArithmeticCompressor:
         compression_ratio = 1 - (compressed_size / original_size)
         compression_time = end_time - start_time
 
-        self.show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
+        #self.show_compression_results(input_file, output_file, compression_ratio, compression_time, max_cpu[0], max_memory[0])
 
     def decompress_image_file(self, input_file, output_file):
         bitstream, ranges, cumulative_lower_boundaries, total_symbols, width, height, mode = self.read_bitstream_from_file(input_file, is_image=True)
@@ -311,20 +311,29 @@ class ArithmeticCompressor:
         # plt.yticks([])
         # plt.show()
 
-def measure_cpu_usage(func, *args):
-    process = psutil.Process()
-
-    process.cpu_percent(interval=None)
-    time.sleep(0.1)
+def measure_resources(func, *args):
+    max_cpu = [0]
+    max_memory = [0]
+    stop_event = threading.Event()
+    monitor_thread = threading.Thread(target=lambda: monitor_resources(stop_event, max_cpu, max_memory))
+    monitor_thread.start()
 
     start_time = time.time()
     func(*args)
     end_time = time.time()
 
-    cpu_percent = process.cpu_percent(interval=None)
-    elapsed_time = end_time - start_time
+    stop_event.set()
+    monitor_thread.join()
 
-    return cpu_percent, elapsed_time
+    return max_cpu[0], max_memory[0] / (1024 * 1024), end_time - start_time
+
+def monitor_resources(stop_event, max_cpu, max_memory):
+    process = psutil.Process(os.getpid())
+    while not stop_event.is_set():
+        cpu_usage = process.cpu_percent(interval=0.01)
+        memory_usage = process.memory_info().rss
+        max_cpu[0] = max(max_cpu[0], cpu_usage)
+        max_memory[0] = max(max_memory[0], memory_usage)
 
 def get_file_paths():
     file_type = input("Voulez-vous compresser une image ou un fichier texte ? (image/texte) : ").strip().lower()
@@ -353,39 +362,32 @@ def print_file_size(file_path, description):
 
 def perform_compression(compressor, input_file_path, compressed_file_path, is_image=False):
     print("\n=== Compression ===")
-    compression_start_time = time.time()
     if is_image:
-        mem_usage = memory_usage((compressor.compress_image_file, (input_file_path, compressed_file_path)), interval=0.1)
-        cpu_usage_percent, _ = measure_cpu_usage(compressor.compress_image_file, input_file_path, compressed_file_path)
+        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_image_file, input_file_path, compressed_file_path)
+
     else:
-        mem_usage = memory_usage((compressor.compress_text_file, (input_file_path, compressed_file_path)), interval=0.1)
-        cpu_usage_percent, _ = measure_cpu_usage(compressor.compress_text_file, input_file_path, compressed_file_path)
-    compression_end_time = time.time()
+        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_text_file, input_file_path, compressed_file_path)
 
     compressed_file_size = os.path.getsize(compressed_file_path)
     print(f"Taille du fichier compressé : {math.ceil(compressed_file_size / 1024)} KB")
-    print(f"Temps de compression : {compression_end_time - compression_start_time} secondes")
-    print(f"Mémoire maximale utilisée pendant la compression : {max(mem_usage)} MiB")
+    print(f"Temps de compression : {compression_time} secondes")
+    print(f"Mémoire maximale utilisée pendant la compression : {mem_usage} MiB")
     print(f"Pourcentage moyen d'utilisation du CPU pendant la compression : {cpu_usage_percent}%")
 
-    return compression_end_time - compression_start_time, compressed_file_size
+    return compression_time, compressed_file_size
 
 def perform_decompression(compressor, compressed_file_path, decompressed_file_path, is_image=False):
     print("\n=== Décompression ===")
-    decompression_start_time = time.time()
     if is_image:
-        mem_usage = memory_usage((compressor.decompress_image_file, (compressed_file_path, decompressed_file_path)), interval=0.1)
-        cpu_usage_percent, _ = measure_cpu_usage(compressor.decompress_image_file, compressed_file_path, decompressed_file_path)
+        cpu_usage_percent, mem_usage, decompression_time = measure_resources(compressor.decompress_image_file, compressed_file_path, decompressed_file_path)
     else:
-        mem_usage = memory_usage((compressor.decompress_text_file, (compressed_file_path, decompressed_file_path)), interval=0.1)
-        cpu_usage_percent, _ = measure_cpu_usage(compressor.decompress_text_file, compressed_file_path, decompressed_file_path)
-    decompression_end_time = time.time()
+        cpu_usage_percent, mem_usage, decompression_time = measure_resources(compressor.decompress_text_file, compressed_file_path, decompressed_file_path)
 
-    print(f"Temps de décompression : {decompression_end_time - decompression_start_time} secondes")
-    print(f"Mémoire maximale utilisée pendant la décompression : {max(mem_usage)} MiB")
+    print(f"Temps de décompression : {decompression_time} secondes")
+    print(f"Mémoire maximale utilisée pendant la décompression : {mem_usage} MiB")
     print(f"Pourcentage moyen d'utilisation du CPU pendant la décompression : {cpu_usage_percent}%")
 
-    return decompression_end_time - decompression_start_time
+    return decompression_time
 
 def calculate_compression_ratio(initial_size, compressed_size):
     compression_ratio = ((initial_size - compressed_size) / initial_size) * 100
