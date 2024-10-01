@@ -1,0 +1,240 @@
+Text File: alice29.txt (arithmetic):
+Average Compression Time: 0.22 seconds
+Average Compression Ratio: 0.44
+Average Max CPU Usage: 181.53%
+Average Max Memory Usage: 91.433203125 bytes
+
+Text File: alice29.txt (lz77):
+Average Compression Time: 9.99 seconds
+Average Compression Ratio: 0.44
+Average Max CPU Usage: 255.89%
+Average Max Memory Usage: 93.723046875 bytes
+
+Text File: asyoulik.txt (arithmetic):
+Average Compression Time: 0.19 seconds
+Average Compression Ratio: 0.39
+Average Max CPU Usage: 178.55%
+Average Max Memory Usage: 92.645703125 bytes
+
+Text File: asyoulik.txt (lz77):
+Average Compression Time: 8.74 seconds
+Average Compression Ratio: 0.40
+Average Max CPU Usage: 262.14%
+Average Max Memory Usage: 93.625 bytes
+
+Text File: plrabn12.txt (arithmetic):
+Average Compression Time: 0.67 seconds
+Average Compression Ratio: 0.45
+Average Max CPU Usage: 228.58%
+Average Max Memory Usage: 105.650390625 bytes
+
+Text File: plrabn12.txt (lz77):
+Average Compression Time: 35.69 seconds
+Average Compression Ratio: 0.37
+Average Max CPU Usage: 262.68%
+Average Max Memory Usage: 122.633984375 bytes
+
+Image File: 4.1.01.tiff (arithmetic):
+Average Compression Time: 0.46 seconds
+Average Compression Ratio: 0.12
+Average Max CPU Usage: 178.07%
+Average Max Memory Usage: 106.54166666666667 bytes
+
+Image File: 4.1.01.tiff (lz77):
+Average Compression Time: 45.59 seconds
+Average Compression Ratio: -0.13
+Average Max CPU Usage: 261.63%
+Average Max Memory Usage: 119.37369791666667 bytes
+
+Image File: 4.1.02.tiff (arithmetic):
+Average Compression Time: 0.44 seconds
+Average Compression Ratio: 0.20
+Average Max CPU Usage: 168.83%
+Average Max Memory Usage: 106.83333333333333 bytes
+
+Image File: 4.1.02.tiff (lz77):
+Average Compression Time: 40.80 seconds
+Average Compression Ratio: 0.00
+Average Max CPU Usage: 259.97%
+Average Max Memory Usage: 117.39583333333333 bytes
+
+Image File: 4.1.03.tiff (arithmetic):
+Average Compression Time: 0.41 seconds
+Average Compression Ratio: 0.23
+Average Max CPU Usage: 178.00%
+Average Max Memory Usage: 107.31510416666667 bytes
+
+Image File: 4.1.03.tiff (lz77):
+Average Compression Time: 33.64 seconds
+Average Compression Ratio: 0.21
+Average Max CPU Usage: 262.10%
+Average Max Memory Usage: 114.11067708333333 bytes
+
+Image File: 4.1.04.tiff (arithmetic):
+Average Compression Time: 0.46 seconds
+Average Compression Ratio: 0.05
+Average Max CPU Usage: 165.57%
+Average Max Memory Usage: 107.13411458333333 bytes
+
+Image File: 4.1.04.tiff (lz77):
+Average Compression Time: 51.46 seconds
+Average Compression Ratio: -0.26
+Average Max CPU Usage: 283.57%
+Average Max Memory Usage: 121.39192708333333 bytes
+
+Image File: 4.1.05.tiff (arithmetic):
+Average Compression Time: 0.40 seconds
+Average Compression Ratio: 0.10
+Average Max CPU Usage: 177.13%
+Average Max Memory Usage: 107.08723958333333 bytes
+
+Image File: 4.1.05.tiff (lz77):
+Average Compression Time: 47.66 seconds
+Average Compression Ratio: -0.15
+Average Max CPU Usage: 303.83%
+Average Max Memory Usage: 119.79817708333333 bytes
+
+Image File: 4.1.06.tiff (arithmetic):
+Average Compression Time: 0.43 seconds
+Average Compression Ratio: 0.04
+Average Max CPU Usage: 217.83%
+Average Max Memory Usage: 107.29296875 bytes
+
+Image File: 4.1.06.tiff (lz77):
+Average Compression Time: 53.51 seconds
+Average Compression Ratio: -0.30
+Average Max CPU Usage: 262.87%
+Average Max Memory Usage: 121.80989583333333 bytes
+
+Image File: 4.1.07.tiff (arithmetic):
+Average Compression Time: 0.39 seconds
+Average Compression Ratio: 0.16
+Average Max CPU Usage: 272.57%
+Average Max Memory Usage: 118.80598958333333 bytes
+
+Image File: 4.1.07.tiff (lz77):
+Average Compression Time: 33.88 seconds
+Average Compression Ratio: 0.19
+Average Max CPU Usage: 262.93%
+Average Max Memory Usage: 126.36458333333333 bytes
+
+Image File: 4.1.08.tiff (arithmetic):
+Average Compression Time: 0.41 seconds
+Average Compression Ratio: 0.13
+Average Max CPU Usage: 228.00%
+Average Max Memory Usage: 118.77734375 bytes
+
+Image File: 4.1.08.tiff (lz77):
+Average Compression Time: 39.23 seconds
+Average Compression Ratio: 0.06
+Average Max CPU Usage: 263.23%
+Average Max Memory Usage: 128.39583333333334 bytes
+
+Image File: 4.2.01.tiff (arithmetic):
+Average Compression Time: 1.69 seconds
+Average Compression Ratio: 0.09
+Average Max CPU Usage: 247.77%
+Average Max Memory Usage: 182.33984375 bytes
+
+Image File: 4.2.01.tiff (lz77):
+Average Compression Time: 196.51 seconds
+Average Compression Ratio: -0.15
+Average Max CPU Usage: 302.70%
+Average Max Memory Usage: 203.88151041666666 bytes
+
+Image File: 4.2.02.tiff (arithmetic):
+Average Compression Time: 1.50 seconds
+Average Compression Ratio: 0.19
+Average Max CPU Usage: 247.83%
+Average Max Memory Usage: 185.56510416666666 bytes
+
+Image File: 4.2.02.tiff (lz77):
+Average Compression Time: 206.41 seconds
+Average Compression Ratio: -0.19
+Average Max CPU Usage: 285.07%
+Average Max Memory Usage: 212.83463541666666 bytes
+
+Image File: 4.2.03.tiff (arithmetic):
+Average Compression Time: 1.74 seconds
+Average Compression Ratio: 0.02
+Average Max CPU Usage: 273.07%
+Average Max Memory Usage: 192.90885416666666 bytes
+
+Image File: 4.2.03.tiff (lz77):
+Average Compression Time: 286.66 seconds
+Average Compression Ratio: -0.68
+Average Max CPU Usage: 305.10%
+Average Max Memory Usage: 240.42057291666666 bytes
+
+Image File: 4.2.04.tiff (arithmetic):
+Average Compression Time: 1.78 seconds
+Average Compression Ratio: 0.03
+Average Max CPU Usage: 266.67%
+Average Max Memory Usage: 194.36328125 bytes
+
+Image File: 4.2.04.tiff (lz77):
+Average Compression Time: 263.11 seconds
+Average Compression Ratio: -0.52
+Average Max CPU Usage: 327.33%
+Average Max Memory Usage: 232.10546875 bytes
+
+Image File: 4.2.05.tiff (arithmetic):
+Average Compression Time: 1.63 seconds
+Average Compression Ratio: 0.16
+Average Max CPU Usage: 267.63%
+Average Max Memory Usage: 187.04166666666666 bytes
+
+Image File: 4.2.05.tiff (lz77):
+Average Compression Time: 199.46 seconds
+Average Compression Ratio: -0.08
+Average Max CPU Usage: 327.67%
+Average Max Memory Usage: 206.64322916666666 bytes
+
+Image File: 4.2.06.tiff (arithmetic):
+Average Compression Time: 1.82 seconds
+Average Compression Ratio: 0.02
+Average Max CPU Usage: 257.10%
+Average Max Memory Usage: 194.18098958333334 bytes
+
+Image File: 4.2.06.tiff (lz77):
+Average Compression Time: 266.00 seconds
+Average Compression Ratio: -0.50
+Average Max CPU Usage: 327.77%
+Average Max Memory Usage: 230.56380208333334 bytes
+
+Image File: 4.2.07.tiff (arithmetic):
+Average Compression Time: 1.81 seconds
+Average Compression Ratio: 0.04
+Average Max CPU Usage: 230.77%
+Average Max Memory Usage: 193.61328125 bytes
+
+Image File: 4.2.07.tiff (lz77):
+Average Compression Time: 284.53 seconds
+Average Compression Ratio: -0.55
+Average Max CPU Usage: 325.97%
+Average Max Memory Usage: 233.55338541666666 bytes
+
+Overall Text Files Results (arithmetic):
+Average Compression Time: 0.36 seconds
+Average Compression Ratio: 0.43
+Average Max CPU Usage: 196.22%
+Average Max Memory Usage: 96.57643229166666 bytes
+
+Overall Image Files Results (arithmetic):
+Average Compression Time: 1.03 seconds
+Average Compression Ratio: 0.11
+Average Max CPU Usage: 225.12%
+Average Max Memory Usage: 147.32005208333334 bytes
+
+Overall Text Files Results (lz77):
+Average Compression Time: 18.14 seconds
+Average Compression Ratio: 0.40
+Average Max CPU Usage: 260.24%
+Average Max Memory Usage: 103.32734375 bytes
+
+Overall Image Files Results (lz77):
+Average Compression Time: 136.56 seconds
+Average Compression Ratio: -0.20
+Average Max CPU Usage: 290.78%
+Average Max Memory Usage: 168.57621527777778 bytes
+
