@@ -14,7 +14,7 @@ def monitor_resources(stop_event, max_cpu, max_memory):
         max_cpu[0] = max(max_cpu[0], cpu_usage)
         max_memory[0] = max(max_memory[0], memory_usage)
 
-def measure_resources(compression_method, input_file_path, compressed_file_path):
+def measure_resources(compression_method, *args):
     # Get the process object for the current process
     process = psutil.Process(os.getpid())
 
@@ -29,7 +29,7 @@ def measure_resources(compression_method, input_file_path, compressed_file_path)
     monitor_thread.start()
 
     # Perform compression
-    compression_method(input_file_path, compressed_file_path)
+    compression_method(*args)
 
     # Stop monitoring thread
     stop_event.set()
@@ -56,13 +56,24 @@ def perform_compression(compressor, input_file_path, compressed_file_path, is_im
         else:
             cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_text_file, input_file_path, compressed_file_path)
     else:
-        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress, input_file_path, compressed_file_path)
+        if is_image:
+            max_offset = 4095
+            max_length = 15  # Ensure max_length is less than 2^4 (16)
+            offset_bits = 12
+            length_bits = 4
+        else:
+            max_offset = 2047
+            max_length = 31  # Ensure max_length is less than 2^5 (32)
+            offset_bits = 11
+            length_bits = 5
+        cpu_usage_percent, mem_usage, compression_time = measure_resources(compressor.compress_file, input_file_path, compressed_file_path, max_offset, max_length, offset_bits, length_bits)
 
     compressed_file_size = os.path.getsize(compressed_file_path)
     print(f"Taille du fichier compressé : {math.ceil(compressed_file_size / 1024)} KB")
     print(f"Temps de compression : {compression_time} secondes")
     print(f"Mémoire maximale utilisée pendant la compression : {mem_usage} MiB")
     print(f"Pourcentage moyen d'utilisation du CPU pendant la compression : {cpu_usage_percent}%")
+    print(f"Taux de compression : {1 - (compressed_file_size / os.path.getsize(input_file_path)):.2f}")
 
     return compression_time, compressed_file_size, cpu_usage_percent, mem_usage
 
@@ -75,9 +86,9 @@ def run_compression(input_file, output_file, is_image=False):
 
     return compression_time, compression_ratio, cpu_usage_percent, mem_usage
 
-def run_lz77_compression(input_file, output_file):
+def run_lz77_compression(input_file, output_file, is_image=False):
     compressor = LZ77Compressor()
-    compression_time, compressed_file_size, cpu_usage_percent, mem_usage = perform_compression(compressor, input_file, output_file)
+    compression_time, compressed_file_size, cpu_usage_percent, mem_usage = perform_compression(compressor, input_file, output_file, is_image)
 
     original_size = os.path.getsize(input_file)
     compression_ratio = 1 - (compressed_file_size / original_size)
@@ -153,7 +164,7 @@ def main():
                 file_results_arithmetic['cpu'].append(max_cpu)
                 file_results_arithmetic['memory'].append(max_memory)
 
-                compression_time, compression_ratio, max_cpu, max_memory = run_lz77_compression(input_file, output_file_lz77)
+                compression_time, compression_ratio, max_cpu, max_memory = run_lz77_compression(input_file, output_file_lz77, is_image=True)
                 file_results_lz77['time'].append(compression_time)
                 file_results_lz77['ratio'].append(compression_ratio)
                 file_results_lz77['cpu'].append(max_cpu)
