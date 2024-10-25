@@ -13,13 +13,23 @@ DEAD_ZONE = 25
 # 1) RGB/YUV
 
 # 1.1) RGB to YUV with 4:2:0 subsampling
-def rgb_to_yuv(image):
+def rgb_to_yuv(image, subsampling='4:2:0'):
     R, G, B = image[:,:,0], image[:,:,1], image[:,:,2]
     Y = 0.299 * R + 0.587 * G + 0.114 * B
     U = (B - Y) * 0.492
     V = (R - Y) * 0.877
-    U = U[::2, ::2]  # Subsample U both horizontally and vertically
-    V = V[::2, ::2]  # Subsample V both horizontally and vertically
+
+    if subsampling == '4:1:1':
+        U = U[:, ::4]  # Subsample U horizontally by 4
+        V = V[:, ::4]  # Subsample V horizontally by 4
+    elif subsampling == '4:0:0':
+        U = np.zeros_like(Y)  # Discard U
+        V = np.zeros_like(Y)  # Discard V
+    elif subsampling == '4:2:0':
+        U = U[::2, ::2]  # Subsample U both horizontally and vertically by 2
+        V = V[::2, ::2]  # Subsample V both horizontally and vertically by 2
+    else:
+        raise ValueError("Unsupported subsampling format. Use '4:1:1', '4:0:0', or '4:2:0'.")
     return Y, U, V
 
 # 1.2) YUV to RGB with 4:2:0 upsampling
