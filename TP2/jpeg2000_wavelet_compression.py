@@ -4,10 +4,8 @@ import cv2
 import matplotlib.pyplot as plt
 
 
-# TODO : fix quantification and Dead zone
-
-QUANT_PARAM=1
-DEAD_ZONE=1
+QUANT_PARAM = 1.25
+DEAD_ZONE = 25
 
 # Note : We used the standard RGB to YUV and YUV to RGB using weighted contribution instead of the given formula
 # since the given formula was causing color distortion
@@ -48,15 +46,15 @@ def idwt2d(coeffs):
 # 3) Quantification
 
 # 3.1) Quantification with dead-zone
-def quantize(coeffs, quant_param=QUANT_PARAM, dead_zone=DEAD_ZONE):
+def quantize(coeffs, quant_param=2):
     quantized_coeffs = []
     for c in coeffs:
-        quantized_c = np.where(np.abs(c) < dead_zone, 0, np.round(c / quant_param) * quant_param)
+        quantized_c = np.where(np.abs(c) < DEAD_ZONE, 0, np.round(c / quant_param) * quant_param)
         quantized_coeffs.append(quantized_c)
     return quantized_coeffs
 
 # 3.2) Reverse Quantification
-def dequantize(coeffs, quant_param=QUANT_PARAM):
+def dequantize(coeffs, quant_param=2):
     dequantized_coeffs = []
     for c in coeffs:
         dequantized_c = c * quant_param
@@ -64,7 +62,7 @@ def dequantize(coeffs, quant_param=QUANT_PARAM):
     return dequantized_coeffs
 
 # Étape finale : Compression et décompression de l'image
-def compress_decompress_image(image, quant_param=QUANT_PARAM):
+def compress_decompress_image(image, quant_param=2):
     # 1) Conversion RGB vers YUV
     Y, U, V = rgb_to_yuv(image)
 
