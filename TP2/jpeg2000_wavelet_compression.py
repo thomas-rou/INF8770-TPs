@@ -3,21 +3,34 @@ import pywt
 import cv2
 import matplotlib.pyplot as plt
 
+
+# TODO : fix quantification and Dead zone
+
+QUANT_PARAM=1
+DEAD_ZONE=1
+
+# Note : We used the standard RGB to YUV and YUV to RGB using weighted contribution instead of the given formula
+# since the given formula was causing color distortion
+
 # 1) RGB/YUV
 
-# 1.1) RGB to YUV
+# 1.1) RGB to YUV with 4:2:0 subsampling
 def rgb_to_yuv(image):
     R, G, B = image[:,:,0], image[:,:,1], image[:,:,2]
-    Y = (R + 2*G + B) / 4
-    U = B - G
-    V = R - G
+    Y = 0.299 * R + 0.587 * G + 0.114 * B
+    U = (B - Y) * 0.492
+    V = (R - Y) * 0.877
+    U = U[::2, ::2]  # Subsample U both horizontally and vertically
+    V = V[::2, ::2]  # Subsample V both horizontally and vertically
     return Y, U, V
 
-# 1.2) YUV to RGB
+# 1.2) YUV to RGB with 4:2:0 upsampling
 def yuv_to_rgb(Y, U, V):
-    G = (Y - (U + V) / 4)
-    R = V + G
-    B = U + G
+    U = cv2.resize(U, (Y.shape[1], Y.shape[0]), interpolation=cv2.INTER_LINEAR)  # Upsample U
+    V = cv2.resize(V, (Y.shape[1], Y.shape[0]), interpolation=cv2.INTER_LINEAR)  # Upsample V
+    R = Y + 1.140 * V
+    G = Y - 0.394 * U - 0.581 * V
+    B = Y + 2.032 * U
     rgb_image = np.stack((R, G, B), axis=-1)
     return rgb_image.clip(0, 255).astype(np.uint8)
 
@@ -34,16 +47,24 @@ def idwt2d(coeffs):
 
 # 3) Quantification
 
-# 3.1) Quantification
-def quantize(coeffs, quant_param=50):
-    return [(np.round(c / quant_param) * quant_param) for c in coeffs]
+# 3.1) Quantification with dead-zone
+def quantize(coeffs, quant_param=QUANT_PARAM, dead_zone=DEAD_ZONE):
+    quantized_coeffs = []
+    for c in coeffs:
+        quantized_c = np.where(np.abs(c) < dead_zone, 0, np.round(c / quant_param) * quant_param)
+        quantized_coeffs.append(quantized_c)
+    return quantized_coeffs
 
 # 3.2) Reverse Quantification
-def dequantize(coeffs, quant_param=50):
-    return [(c * quant_param) for c in coeffs]
+def dequantize(coeffs, quant_param=QUANT_PARAM):
+    dequantized_coeffs = []
+    for c in coeffs:
+        dequantized_c = c * quant_param
+        dequantized_coeffs.append(dequantized_c)
+    return dequantized_coeffs
 
 # Étape finale : Compression et décompression de l'image
-def compress_decompress_image(image, quant_param=50):
+def compress_decompress_image(image, quant_param=QUANT_PARAM):
     # 1) Conversion RGB vers YUV
     Y, U, V = rgb_to_yuv(image)
 
@@ -95,7 +116,7 @@ if __name__ == '__main__':
         print("Error: Image not found or unable to load.")
     else:
         # Compression et décompression de l'image
-        compressed_image = compress_decompress_image(image, quant_param=50)
+        compressed_image = compress_decompress_image(image, quant_param=QUANT_PARAM)
 
         # Affichage des images
         display_images(image, compressed_image)
