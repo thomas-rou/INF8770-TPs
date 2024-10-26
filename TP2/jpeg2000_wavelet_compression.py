@@ -2,10 +2,12 @@ import numpy as np
 import pywt
 import cv2
 import matplotlib.pyplot as plt
+from SSIM_PIL import compare_ssim
+from PIL import Image
 
 
 QUANT_PARAM = 1.25
-DEAD_ZONE = 25
+DEAD_ZONE = 10
 
 # Note : We used the standard RGB to YUV and YUV to RGB using weighted contribution instead of the given formula
 # since the given formula was causing color distortion
@@ -13,7 +15,7 @@ DEAD_ZONE = 25
 # 1) RGB/YUV
 
 # 1.1) RGB to YUV with 4:2:0 subsampling
-def rgb_to_yuv(image, subsampling='4:2:0'):
+def rgb_to_yuv(image, subsampling='4:2:2'):
     R, G, B = image[:,:,0], image[:,:,1], image[:,:,2]
     Y = 0.299 * R + 0.587 * G + 0.114 * B
     U = (B - Y) * 0.492
@@ -116,6 +118,13 @@ def compress_decompress_image(image, quant_param=2):
 
 # Chargement et affichage de l'image originale et reconstruite
 def display_images(original_image, compressed_image):
+    # Convert images to PIL format
+    original_pil = Image.fromarray(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
+    reconstructed_pil = Image.fromarray(cv2.cvtColor(compressed_image, cv2.COLOR_BGR2RGB))
+
+    # Calculate SSIM
+    ssim_value = compare_ssim(original_pil, reconstructed_pil)
+
     plt.figure(figsize=(12,6))
 
     # Image originale
@@ -126,7 +135,7 @@ def display_images(original_image, compressed_image):
     # Image reconstruite
     plt.subplot(1, 2, 2)
     plt.imshow(cv2.cvtColor(compressed_image, cv2.COLOR_BGR2RGB))
-    plt.title('Image Reconstruite')
+    plt.title(f'Image Reconstruite\nSSIM: {ssim_value:.4f}')
 
     plt.show()
 
