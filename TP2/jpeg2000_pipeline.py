@@ -3,7 +3,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 # Fonction pour la conversion RGB -> YUV avec sous-échantillonnage 4:2:0
-def convert_rgb_to_yuv(image: np.ndarray) -> tuple:
+def convert_rgb_to_yuv(image: np.ndarray, subsampling: str) -> tuple:
     # Extraction des canaux RGB de l'image
     R = image[:, :, 0]
     G = image[:, :, 1]
@@ -14,13 +14,30 @@ def convert_rgb_to_yuv(image: np.ndarray) -> tuple:
     U = (B - Y) * 0.492
     V = (R - Y) * 0.877
 
-    # Sous-échantillonnage 4:2:0 pour U et V
-    U[1::2, :] = U[::2, :]  # Subsample U both horizontally and vertically by 2
-    U[:, 1::2] = U[:, ::2]
-    U[::2, :] = 0  # Set the rest to 0
-    V[1::2, :] = V[::2, :]  # Subsample V both horizontally and vertically by 2
-    V[:, 1::2] = V[:, ::2]
-    V[::2, :] = 0  # Set the rest to 0
+    if subsampling == '4:4:4' :
+        return Y, U, V
+    elif subsampling == '4:2:2':
+        U[:, 1::2] = U[:, ::2]  # Subsample U horizontally by 2
+        U[:, ::2] = 0  # Set the rest to 0
+        V[:, 1::2] = V[:, ::2]  # Subsample V horizontally by 2
+        V[:, ::2] = 0  # Set the rest to 0
+    elif subsampling == '4:1:1':
+        U[:, 1::4] = U[:, ::4]  # Subsample U horizontally by 4
+        U[:, ::4] = 0  # Set the rest to 0
+        V[:, 1::4] = V[:, ::4]  # Subsample V horizontally by 4
+        V[:, ::4] = 0  # Set the rest to 0
+    elif subsampling == '4:0:0':
+        U[:, :] = 0  # Discard U
+        V[:, :] = 0  # Discard V
+    elif subsampling == '4:2:0':
+        U[1::2, :] = U[::2, :]  # Subsample U both horizontally and vertically by 2
+        U[:, 1::2] = U[:, ::2]
+        U[::2, :] = 0  # Set the rest to 0
+        V[1::2, :] = V[::2, :]  # Subsample V both horizontally and vertically by 2
+        V[:, 1::2] = V[:, ::2]
+        V[::2, :] = 0  # Set the rest to 0
+    else:
+        raise ValueError("Unsupported subsampling format. Use '4:4:4', '4:2:2', '4:1:1', '4:0:0', or '4:2:0'.")
 
     return Y, U, V
 
