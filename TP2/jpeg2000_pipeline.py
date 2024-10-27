@@ -43,7 +43,6 @@ def convert_rgb_to_yuv(image: np.ndarray, subsampling: str) -> tuple:
 
 # Fonction pour la conversion inverse YUV -> RGB
 def convert_yuv_to_rgb(Y: np.ndarray, U: np.ndarray, V: np.ndarray) -> np.ndarray:
-    # Calculer le canal G selon l'équation donnée
     R = Y + 1.140 * V
     G = Y - 0.394 * U - 0.581 * V
     B = Y + 2.032 * U
@@ -145,7 +144,7 @@ def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: 
     display_image(image_np, "Image Originale")
 
     # Conversion RGB -> YUV (sans sous-échantillonnage pour simplifier)
-    Y, U, V = convert_rgb_to_yuv(image_np)
+    Y, U, V = convert_rgb_to_yuv(image_np, '4:2:0')
     
     # Afficher les composantes Y, U, V
     display_image(Y, "Composante Y")
