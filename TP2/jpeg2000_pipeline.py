@@ -4,9 +4,8 @@ import matplotlib.pyplot as plt
 from SSIM_PIL import compare_ssim
 import cv2
 
-# Fonction pour la conversion RGB -> YUV avec sous-échantillonnage 4:2:0
+# Fonction pour la conversion RGB -> YUV
 def convert_rgb_to_yuv(image: np.ndarray, subsampling: str = '4:2:0') -> tuple:
-    # Extraction des canaux RGB de l'image
     R = image[:, :, 0]
     G = image[:, :, 1]
     B = image[:, :, 2]
@@ -15,66 +14,73 @@ def convert_rgb_to_yuv(image: np.ndarray, subsampling: str = '4:2:0') -> tuple:
     Y = 0.299 * R + 0.587 * G + 0.114 * B
     U = (B - Y) * 0.492
     V = (R - Y) * 0.877
-
-    if subsampling == '4:4:4' :
+    
+    if subsampling == '4:4:4':
         return Y, U, V
     elif subsampling == '4:2:2':
-        U[:, 1::2] = U[:, ::2]  # Subsample U horizontally by 2
-        U[:, ::2] = 0  # Set the rest to 0
-        V[:, 1::2] = V[:, ::2]  # Subsample V horizontally by 2
-        V[:, ::2] = 0  # Set the rest to 0
+        U = U[:, ::2]
+        V = V[:, ::2]
     elif subsampling == '4:1:1':
-        U[:, 1::4] = U[:, ::4]  # Subsample U horizontally by 4
-        U[:, ::4] = 0  # Set the rest to 0
-        V[:, 1::4] = V[:, ::4]  # Subsample V horizontally by 4
-        V[:, ::4] = 0  # Set the rest to 0
+        U = U[:, ::4]
+        V = V[:, ::4]
     elif subsampling == '4:0:0':
-        U[:, :] = 0  # Discard U
-        V[:, :] = 0  # Discard V
+        U = np.zeros_like(Y)
+        V = np.zeros_like(Y)
     elif subsampling == '4:2:0':
-        U[1::2, :] = U[::2, :]  # Subsample U both horizontally and vertically by 2
-        U[:, 1::2] = U[:, ::2]
-        U[::2, :] = 0  # Set the rest to 0
-        V[1::2, :] = V[::2, :]  # Subsample V both horizontally and vertically by 2
-        V[:, 1::2] = V[:, ::2]
-        V[::2, :] = 0  # Set the rest to 0
+        U = U[::2, ::2]
+        V = V[::2, ::2]
     else:
         raise ValueError("Unsupported subsampling format. Use '4:4:4', '4:2:2', '4:1:1', '4:0:0', or '4:2:0'.")
 
     return Y, U, V
 
-# Fonction pour la conversion inverse YUV -> RGB
 def convert_yuv_to_rgb(Y: np.ndarray, U: np.ndarray, V: np.ndarray) -> np.ndarray:
+    # Redimensionner U et V pour correspondre à Y en doublant les lignes et/ou les colonnes si nécessaire
+    if U.shape != Y.shape:
+        U = np.repeat(U, Y.shape[0] // U.shape[0], axis=0)
+        U = np.repeat(U, Y.shape[1] // U.shape[1], axis=1)
+    if V.shape != Y.shape:
+        V = np.repeat(V, Y.shape[0] // V.shape[0], axis=0)
+        V = np.repeat(V, Y.shape[1] // V.shape[1], axis=1)
+    
+    # Calculer les canaux RGB
     R = Y + 1.140 * V
     G = Y - 0.394 * U - 0.581 * V
     B = Y + 2.032 * U
     
+    # Combiner les canaux en une seule image RGB
     rgb_image = np.stack((R, G, B), axis=-1)
     
     return rgb_image.clip(0, 255).astype(np.uint8)
 
+
 # Fonction pour appliquer la Transformée en Ondelettes Discrète (DWT)
 def apply_dwt(image: np.ndarray, levels: int = 3) -> list:
-    
     subbands = []
     current_image = image
-    
+
     for _ in range(levels):
+        # Vérifie si les dimensions sont impaires et duplique le dernier pixel si nécessaire
+        if current_image.shape[1] % 2 != 0:
+            current_image = np.concatenate((current_image, current_image[:, -1:]), axis=1)
+        if current_image.shape[0] % 2 != 0:
+            current_image = np.concatenate((current_image, current_image[-1:, :]), axis=0)
+
         # Filtrage passe-bas en X
         f1 = (current_image[:, ::2] + current_image[:, 1::2]) / 2
         f1h = (f1[::2, :] - f1[1::2, :]) / 2
         f11 = (f1[::2, :] + f1[1::2, :]) / 2
-        
+
         # Filtrage passe-haut en X (fh)
         fh = (current_image[:, ::2] - current_image[:, 1::2]) / 2
         fh1 = (fh[::2, :] + fh[1::2, :]) / 2
         fhh = (fh[::2, :] - fh[1::2, :]) / 2
-        
+
         subbands.append((f11, f1h, fh1, fhh))
-        
+
         # On garde la sous-bande LL pour la prochaine itération
         current_image = f11
-        
+
     return subbands
 
 # Fonction pour appliquer la Transformée en Ondelettes Discrète Inverse (IDWT)
