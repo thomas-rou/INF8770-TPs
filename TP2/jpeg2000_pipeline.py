@@ -1,9 +1,11 @@
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+from SSIM_PIL import compare_ssim
+import cv2
 
 # Fonction pour la conversion RGB -> YUV avec sous-échantillonnage 4:2:0
-def convert_rgb_to_yuv(image: np.ndarray, subsampling: str) -> tuple:
+def convert_rgb_to_yuv(image: np.ndarray, subsampling: str = '4:2:0') -> tuple:
     # Extraction des canaux RGB de l'image
     R = image[:, :, 0]
     G = image[:, :, 1]
@@ -128,14 +130,35 @@ def inverse_quantize(quantized_coefficients: list, step_size: float) -> list:
 
 
 # Fonction pour afficher une image à partir d'un tableau NumPy
-def display_image(image_array: np.ndarray, title: str = ""):
-    plt.imshow(image_array, cmap='gray' if len(image_array.shape) == 2 else None)
-    plt.title(title)
-    plt.axis('off')
-    plt.show()
+def display_image(image_array: np.ndarray, title: str = "", image_array2: np.ndarray = None, title2: str = None):
+    if image_array2 is None:
+        # Affichage d'une seule image
+        plt.imshow(image_array, cmap='gray' if len(image_array.shape) == 2 else None)
+        plt.title(title)
+        plt.axis('off')
+        plt.show()
+    else:
+        # Affichage de deux images côte à côte
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))  # 1 ligne, 2 colonnes
+        axes[0].imshow(image_array, cmap='gray' if len(image_array.shape) == 2 else None)
+        axes[0].set_title(title)
+        axes[0].axis('off')
+        
+        # Convert images to PIL format
+        original_pil = Image.fromarray(cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB))
+        reconstructed_pil = Image.fromarray(cv2.cvtColor(image_array2, cv2.COLOR_BGR2RGB))
+
+        # Calculate SSIM
+        ssim_value = compare_ssim(original_pil, reconstructed_pil)
+        
+        axes[1].imshow(image_array2, cmap='gray' if len(image_array2.shape) == 2 else None)
+        axes[1].set_title(f'{title2}\nSSIM: {ssim_value:.4f}' if title2 else "")
+        axes[1].axis('off')
+        
+        plt.show()
 
 # Pipeline JPEG2000
-def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: float = 1, dead_zone_width: float = 1):
+def jpeg2000_pipeline(image_path: str, show_steps: bool = False, levels: int = 3, quantization_step_size: float = 1, dead_zone_width: float = 1):
     # Charger l'image
     image = Image.open(image_path)
     image_np = np.array(image)
@@ -147,9 +170,10 @@ def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: 
     Y, U, V = convert_rgb_to_yuv(image_np, '4:2:0')
     
     # Afficher les composantes Y, U, V
-    display_image(Y, "Composante Y")
-    display_image(U, "Composante U")
-    display_image(V, "Composante V")
+    if show_steps:
+        display_image(Y, "Composante Y")
+        display_image(U, "Composante U")
+        display_image(V, "Composante V")
     
     # Appliquer la DWT sur chaque composante
     Y_subbands = apply_dwt(Y, levels)
@@ -157,9 +181,10 @@ def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: 
     V_subbands = apply_dwt(V, levels)
     
     # Afficher la sous-bande LL après DWT
-    display_image(Y_subbands[-1][0], "Sous-bande LL après DWT - Y")
-    display_image(U_subbands[-1][0], "Sous-bande LL après DWT - U")
-    display_image(V_subbands[-1][0], "Sous-bande LL après DWT - V")
+    if show_steps:
+        display_image(Y_subbands[-1][0], "Sous-bande LL après DWT - Y")
+        display_image(U_subbands[-1][0], "Sous-bande LL après DWT - U")
+        display_image(V_subbands[-1][0], "Sous-bande LL après DWT - V")
     
     # Quantification des coefficients de la DWT
     quantized_Y_subbands = dead_zone_quantize(Y_subbands, quantization_step_size, dead_zone_width)
@@ -167,9 +192,10 @@ def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: 
     quantized_V_subbands = dead_zone_quantize(V_subbands, quantization_step_size, dead_zone_width)
     
     # Afficher la sous-bande quantifiée
-    display_image(quantized_Y_subbands[-1][0], "Sous-bande LL quantifiée - Y")
-    display_image(quantized_U_subbands[-1][0], "Sous-bande LL quantifiée - U")
-    display_image(quantized_V_subbands[-1][0], "Sous-bande LL quantifiée - V")
+    if show_steps:
+        display_image(quantized_Y_subbands[-1][0], "Sous-bande LL quantifiée - Y")
+        display_image(quantized_U_subbands[-1][0], "Sous-bande LL quantifiée - U")
+        display_image(quantized_V_subbands[-1][0], "Sous-bande LL quantifiée - V")
 
     # --- Processus inverse ---
     # Inverse de la quantification
@@ -178,9 +204,10 @@ def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: 
     V_subbands = inverse_quantize(quantized_V_subbands, quantization_step_size)
     
     # Afficher la sous-bande après inverse quantification
-    display_image(Y_subbands[-1][0], "Sous-bande LL après inverse quantification - Y")
-    display_image(U_subbands[-1][0], "Sous-bande LL après inverse quantification - U")
-    display_image(V_subbands[-1][0], "Sous-bande LL après inverse quantification - V")
+    if show_steps:
+        display_image(Y_subbands[-1][0], "Sous-bande LL après inverse quantification - Y")
+        display_image(U_subbands[-1][0], "Sous-bande LL après inverse quantification - U")
+        display_image(V_subbands[-1][0], "Sous-bande LL après inverse quantification - V")
 
     # Inverse de la DWT
     Y_reconstructed = apply_idwt(Y_subbands, levels)
@@ -188,16 +215,17 @@ def jpeg2000_pipeline(image_path: str, levels: int = 3, quantization_step_size: 
     V_reconstructed = apply_idwt(V_subbands, levels)
     
     # Afficher les composantes Y, U, V reconstruites
-    display_image(Y_reconstructed, "Composante Y reconstruite")
-    display_image(U_reconstructed, "Composante U reconstruite")
-    display_image(V_reconstructed, "Composante V reconstruite")
+    if show_steps:
+        display_image(Y_reconstructed, "Composante Y reconstruite")
+        display_image(U_reconstructed, "Composante U reconstruite")
+        display_image(V_reconstructed, "Composante V reconstruite")
     
     # Conversion YUV -> RGB
     reconstructed_image = convert_yuv_to_rgb(Y_reconstructed, U_reconstructed, V_reconstructed)
     
     # Afficher l'image reconstruite
-    display_image(reconstructed_image, "Image Reconstruite")
+    display_image(image_np, "Image Original", reconstructed_image, "Image Reconstruite")
 
 if __name__ == "__main__":
     # Exemple d'utilisation du pipeline avec une image test
-    jpeg2000_pipeline("RGB.jpg")
+    jpeg2000_pipeline("RGB.jpg", False)
