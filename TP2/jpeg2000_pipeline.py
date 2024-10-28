@@ -170,7 +170,7 @@ def jpeg2000_pipeline(image_path: str, show_steps: bool = False, levels: int = 3
     image_np = np.array(image)
     
     # Afficher l'image originale
-    display_image(image_np, "Image Originale")
+    # display_image(image_np, "Image Originale")
 
     # Conversion RGB -> YUV (sans sous-échantillonnage pour simplifier)
     Y, U, V = convert_rgb_to_yuv(image_np, '4:2:0')
@@ -234,4 +234,4 @@ def jpeg2000_pipeline(image_path: str, show_steps: bool = False, levels: int = 3
 
 if __name__ == "__main__":
     # Exemple d'utilisation du pipeline avec une image test
-    jpeg2000_pipeline("RGB.jpg", False)
+    jpeg2000_pipeline("RGB.jpg", True)
