@@ -51,6 +51,36 @@ class EdgeDetector:
         plt.axis('off')
         plt.show()
 
+    def detect_sequences(self, video_path):
+        cap = cv2.VideoCapture(video_path)
+        edge_detector = EdgeDetector()
+
+        prev_gradient_magnitude = None
+        frame_count = 0
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            gray_frame = edge_detector.grayscale(frame)
+            _, _, gradient_magnitude = edge_detector.sobel_filter(gray_frame)
+
+            if prev_gradient_magnitude is not None:
+                # Calculate the difference between consecutive frames
+                diff = np.abs(gradient_magnitude - prev_gradient_magnitude)
+                mean_diff = np.mean(diff)
+
+                # Detect cuts and fades based on the difference
+                if mean_diff > 50:  # Threshold for cut detection
+                    print(f"Cut detected at frame {frame_count}")
+                elif mean_diff > 20:  # Threshold for fade detection
+                    print(f"Fade detected at frame {frame_count}")
+
+            prev_gradient_magnitude = gradient_magnitude
+            frame_count += 1
+
+        cap.release()
 
 def main():
     # Load image
@@ -60,27 +90,30 @@ def main():
     # Create edge detector
     edge_detector = EdgeDetector()
 
-    # Convert image to grayscale
-    gray_image = edge_detector.grayscale(image)
+    # # Convert image to grayscale
+    # gray_image = edge_detector.grayscale(image)
 
-    # Display grayscale image
-    edge_detector.show_gray_scale(gray_image)
+    # # Display grayscale image
+    # edge_detector.show_gray_scale(gray_image)
 
-    # Apply Sobel filter
-    sobel_x, sobel_y, gradient_magnitude = edge_detector.sobel_filter(gray_image)
+    # # Apply Sobel filter
+    # sobel_x, sobel_y, gradient_magnitude = edge_detector.sobel_filter(gray_image)
 
-    # Display gradient images
-    edge_detector.show_gradient(sobel_x)
-    edge_detector.show_gradient(sobel_y)
-    edge_detector.show_gradient(gradient_magnitude)
+    # # Display gradient images
+    # edge_detector.show_gradient(sobel_x)
+    # edge_detector.show_gradient(sobel_y)
+    # edge_detector.show_gradient(gradient_magnitude)
 
-     # Print gradient matrices
-    print("Gx:", sobel_x)
-    print("Gy:", sobel_y)
+    #  # Print gradient matrices
+    # print("Gx:", sobel_x)
+    # print("Gy:", sobel_y)
 
-    # Display edges based on gradient strength
-    edge_detector.show_edges(gradient_magnitude, 80)
-    edge_detector.show_edges(gradient_magnitude, 150)
+    # # Display edges based on gradient strength
+    # edge_detector.show_edges(gradient_magnitude, 80)
+    # edge_detector.show_edges(gradient_magnitude, 150)
+
+    video_path = os.path.join(os.getcwd(), '../VideodataTP3/Athletisme.mp4')
+    edge_detector.detect_sequences(video_path)
 
 
 if __name__ == '__main__':
