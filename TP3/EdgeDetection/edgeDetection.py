@@ -43,6 +43,14 @@ class EdgeDetector:
         plt.axis('off')
         plt.show()
 
+    # Display edges based on gradient strength
+    def show_edges(self, gradient, threshold):
+        edges = gradient > threshold
+        plt.figure(figsize=(10, 10))
+        plt.imshow(edges, cmap='binary')
+        plt.axis('off')
+        plt.show()
+
 
 def main():
     # Load image
@@ -65,6 +73,14 @@ def main():
     edge_detector.show_gradient(sobel_x)
     edge_detector.show_gradient(sobel_y)
     edge_detector.show_gradient(gradient_magnitude)
+
+     # Print gradient matrices
+    print("Gx:", sobel_x)
+    print("Gy:", sobel_y)
+
+    # Display edges based on gradient strength
+    edge_detector.show_edges(gradient_magnitude, 80)
+    edge_detector.show_edges(gradient_magnitude, 150)
 
 
 if __name__ == '__main__':
