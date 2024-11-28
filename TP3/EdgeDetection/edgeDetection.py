@@ -34,7 +34,7 @@ class EdgeDetector:
         frame_count = 0
         last_transition_frame = -10
         cut_count = 0
-        window_size = 10
+        window_size = 5
         recent_rho = []
 
         print("Début du traitement de la vidéo...")
@@ -46,7 +46,7 @@ class EdgeDetector:
 
             frame = cv2.resize(frame, (640, 360))
             _, _, gradient_magnitude, gradient_orientation = self.compute_gradients(frame)
-            edges = gradient_magnitude > 200
+            edges = gradient_magnitude > 220
             dilated_edges = self.dilate_edges(edges)
 
             if prev_edges is not None and prev_dilated_edges is not None:
@@ -57,7 +57,7 @@ class EdgeDetector:
                 rho = max(rho_in, rho_out)
                 self.rho_max.append(rho)
 
-                if rho > 0.5 and (frame_count - last_transition_frame) > 10:
+                if rho > 0.5 and (frame_count - last_transition_frame) > 5:
                     if rho > 0.75 and abs(rho - np.average(recent_rho)) > 0.3:
                         transition_type = "Coupure"
                         self.transitions.append((frame_count, transition_type, frame_count / fps))
@@ -70,7 +70,8 @@ class EdgeDetector:
                     recent_rho.pop(0)
 
             if frame_count % 50 == 0:
-                print(f"Frame {frame_count} traitée...")
+                #print(f"Frame {frame_count} traitée...")
+                pass
 
             prev_edges = edges
             prev_dilated_edges = dilated_edges
@@ -122,7 +123,7 @@ class EdgeDetector:
         plt.show()
 
 def main():
-    video_path = "../VideodataTP3/Athletisme.mp4"
+    video_path = "../VideodataTP3/Soccer.mp4"
     edge_detector = EdgeDetector()
     edge_detector.detect_transitions(video_path)
     edge_detector.report_transitions()
@@ -137,7 +138,7 @@ def main():
     ret, frame = cap.read()
     if ret:
         _, _, gradient_magnitude, _ = edge_detector.compute_gradients(frame)
-        edge_detector.visualize_edges(gradient_magnitude, threshold=80)
+        edge_detector.visualize_edges(gradient_magnitude, threshold=200)
     cap.release()
 
 if __name__ == "__main__":
