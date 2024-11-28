@@ -32,10 +32,12 @@ class EdgeDetector:
         prev_edges = None
         prev_dilated_edges = None
         frame_count = 0
-        last_transition_frame = -10
         cut_count = 0
+        fade_count = 0
+        last_transition_frame = -10
         window_size = 5
         recent_rho = []
+        in_fade_start_frame = None
 
         print("Début du traitement de la vidéo...")
         while cap.isOpened():
@@ -64,7 +66,19 @@ class EdgeDetector:
                         print(f"Transition détectée : {transition_type} à la frame {frame_count} ({frame_count / fps:.2f} s)")
                         last_transition_frame = frame_count
                         cut_count += 1
+                elif in_fade_start_frame is None and rho_in > rho_out and (rho_in - rho_out) >= 0.1:
+                    in_fade_start_frame = frame_count
+                elif in_fade_start_frame is not None and (rho_out > rho_in):
+                    transition_type = "Fondu"
+                    self.transitions.append((in_fade_start_frame, transition_type, in_fade_start_frame / fps))
+                    self.transitions.append((frame_count, transition_type, frame_count / fps))
+                    print(f"Transition détectée : {transition_type} de la frame {in_fade_start_frame} à la frame {frame_count} ({in_fade_start_frame / fps:.2f} s - {frame_count / fps:.2f} s)")
+                    fade_count += 1
+                    in_fade_start_frame = None  # Reset fade detection
+                elif in_fade_start_frame is not None and (frame_count - in_fade_start_frame) > 15:
+                    in_fade_start_frame = None  # Reset fade detection
 
+                last_rho = rho
                 recent_rho.append(rho)
                 if len(recent_rho) > window_size:
                     recent_rho.pop(0)
@@ -78,6 +92,7 @@ class EdgeDetector:
             frame_count += 1
 
         print(f"Nombre total de coupures détectées : {cut_count}")
+        print(f"Nombre total de fondus détectés : {fade_count}")
         cap.release()
 
     def report_transitions(self):
@@ -100,7 +115,7 @@ class EdgeDetector:
 
         plt.plot(timestamps, self.rho_in, 'x', label="Rho In", color="blue")
         plt.plot(timestamps, self.rho_out, 'o', label="Rho Out", color="red")
-        plt.plot(timestamps, self.rho_max, 's', label="Rho Max", color="green")
+        #plt.plot(timestamps, self.rho_max, 's', label="Rho Max", color="green")
 
         plt.title("Évolution des fractions de changement d'arêtes (Rho) entre frames successives")
         plt.xlabel("Temps (secondes)")
@@ -123,7 +138,7 @@ class EdgeDetector:
         plt.show()
 
 def main():
-    video_path = "../VideodataTP3/Soccer.mp4"
+    video_path = "../VideodataTP3/Athletisme.mp4"
     edge_detector = EdgeDetector()
     edge_detector.detect_transitions(video_path)
     edge_detector.report_transitions()
