@@ -138,7 +138,7 @@ def main():
     ret, frame = cap.read()
     if ret:
         _, _, gradient_magnitude, _ = edge_detector.compute_gradients(frame)
-        edge_detector.visualize_edges(gradient_magnitude, threshold=200)
+        edge_detector.visualize_edges(gradient_magnitude, threshold=220)
     cap.release()
 
 if __name__ == "__main__":
