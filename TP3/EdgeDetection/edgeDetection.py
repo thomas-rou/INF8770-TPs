@@ -2,6 +2,10 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
+# Code inspiré de : https://github.com/abhilas0/edge_detection/blob/master/edge_detection.ipynb
+# et https://github.com/gabilodeau/INF8770/blob/master/Gradients%20et%20extraction%20d'aretes%20sur%20une%20image.ipynb
+# Utilisation de GitHub Copilot pour contribuer à l'écriture du code par l'auto-complétion et la suggestion de code de lecture de vidéo
+
 class EdgeDetector:
     def __init__(self):
         self.transitions = []
