@@ -69,7 +69,7 @@ class EdgeDetector:
                 rho = max(rho_in, rho_out)
                 self.rho_max.append(rho)
 
-                if len(self.rho_max) > 1 :
+                if len(self.rho_max) > 1:
                     mu = np.mean(self.rho_max)
                     sigma = np.std(self.rho_max)
                     threshold = mu + r * sigma
@@ -85,32 +85,27 @@ class EdgeDetector:
                         print(f"Transition détectée : {transition_type} à la frame {frame_count} ({frame_count / fps:.2f} s)")
                         last_transition_frame = frame_count
                         cut_count += 1
-                        fade_start_frame = None  # Reset fade detection
-                if fade_start_frame is None and rho_in > rho_out and (rho_in - rho_out) > 0.04:
+                        fade_start_frame = None
+
+                if fade_start_frame is None and (rho_in > rho_out) and (rho_in - rho_out > 0.025) and (rho < threshold):
                     possible_fade_frame_count += 1
-                    if possible_fade_frame_count >= 5:
-                        fade_start_frame = frame_count - 5
+                    if possible_fade_frame_count >= 4:
+                        fade_start_frame = frame_count - 2
                         possible_fade_frame_count = 0
-                elif fade_start_frame is None and rho_out > rho_in:
-                    possible_fade_frame_count = 0
-                elif fade_start_frame is not None and (rho_out > rho_in):
+                elif fade_start_frame is not None and (rho_out > rho_in or (frame_count - fade_start_frame) > 30):
                     transition_type = "Fondu"
                     self.transitions.append((fade_start_frame, transition_type, fade_start_frame / fps))
                     self.transitions.append((frame_count, transition_type, frame_count / fps))
                     print(f"Transition détectée : {transition_type} de la frame {fade_start_frame} à la frame {frame_count} ({fade_start_frame / fps:.2f} s - {frame_count / fps:.2f} s)")
                     fade_count += 1
-                    fade_start_frame = None  # Reset fade detection
+                    fade_start_frame = None
                     last_transition_frame = frame_count
-                elif fade_start_frame is not None and (frame_count - fade_start_frame) > 15:
-                    fade_start_frame = None  # Reset fade detection
+                else:
+                    possible_fade_frame_count = 0
 
                 recent_rho.append(rho)
                 if len(recent_rho) > window_size:
                     recent_rho.pop(0)
-
-            if frame_count % 50 == 0:
-                #print(f"Frame {frame_count} traitée...")
-                pass
 
             prev_edges = edges
             prev_dilated_edges = dilated_edges
