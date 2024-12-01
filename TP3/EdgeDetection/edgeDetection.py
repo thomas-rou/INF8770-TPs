@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 # et https://github.com/gabilodeau/INF8770/blob/master/Gradients%20et%20extraction%20d'aretes%20sur%20une%20image.ipynb
 # Utilisation de GitHub Copilot pour contribuer à l'écriture du code par l'auto-complétion et la suggestion de code de lecture de vidéo
 
+
+# TODO : Voir https://github.com/gabilodeau/INF8770/blob/master/Differences%20de%20Gaussiennes.ipynboi
 class EdgeDetector:
     def __init__(self):
         self.transitions = []
