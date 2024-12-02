@@ -46,11 +46,11 @@ class Combiner:
         plt.figure(figsize=(12, 6))
 
         offset = 0.1
-        
+
         # Athlétisme
         # ground_truth_fades = [12, 41]  # En secondes
         # ground_truth_cuts = [17, 24, 32]  # En secondes
-        
+
         # Soccer
         ground_truth_fades = [19.167, 49.234, 61.2]  # En secondes
         ground_truth_cuts = [
@@ -63,7 +63,7 @@ class Combiner:
 
         for gt_fade in ground_truth_fades:
             plt.axvline(gt_fade, color='green', linestyle='--', label="Ground Truth - Fondu" if 'Ground Truth - Fondu' not in plt.gca().get_legend_handles_labels()[1] else "")
-            
+
         for gt_cut in ground_truth_cuts:
             plt.axvline(gt_cut, color='purple', linestyle='--', label="Ground Truth - Coupure" if 'Ground Truth - Coupure' not in plt.gca().get_legend_handles_labels()[1] else "")
 

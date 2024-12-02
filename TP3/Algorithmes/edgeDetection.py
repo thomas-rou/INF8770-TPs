@@ -2,6 +2,11 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
+# Code inspiré de : https://github.com/abhilas0/edge_detection/blob/master/edge_detection.ipynb
+# et https://github.com/gabilodeau/INF8770/blob/master/Gradients%20et%20extraction%20d'aretes%20sur%20une%20image.ipynb
+# Utilisation de GitHub Copilot pour contribuer à l'écriture du code par l'auto-complétion et la suggestion de code de lecture de vidéo
+
+
 class EdgeDetector:
     def __init__(self, Verbose=False):
         self.transitions = []
@@ -10,11 +15,8 @@ class EdgeDetector:
         self.rho_max = []
         self.threshold = []
         self.Verbose = Verbose
-        
+
     def reset(self):
-        """
-        Réinitialise les données internes pour une nouvelle exécution.
-        """
         self.transitions = []
         self.rho_in = []
         self.rho_out = []
@@ -122,23 +124,57 @@ class EdgeDetector:
         if self.Verbose:
             print(f"Nombre total de coupures détectées : {cut_count}")
             print(f"Nombre total de fondus détectés : {fade_count}")
+            self.plot_edge_change_fraction(fps)
         cap.release()
 
     def get_transitions(self):
-        """
-        Retourne deux listes distinctes :
-        - Les fondues détectées (avec début et fin).
-        - Les coupures détectées.
-        """
         fades = [(t[3], t[4]) for t in self.transitions if t[2] == "Fondu"]
         cuts = [(t[3], t[4]) for t in self.transitions if t[2] == "Coupure"]
         return fades, cuts
-    
+
+    def plot_edge_change_fraction(self, fps):
+        timestamps = [frame / fps for frame in range(len(self.rho_in))]
+        plt.figure(figsize=(12, 6))
+
+        plt.plot(timestamps, self.rho_in, 'x', label="Rho In", color="blue")
+        plt.plot(timestamps, self.rho_out, 'o', label="Rho Out", color="red")
+        #plt.plot(timestamps, self.rho_max, 's', label="Rho Max", color="green")
+
+        plt.title("Évolution des fractions de changement d'arêtes (Rho) entre trames successives")
+        plt.xlabel("Temps (secondes)")
+        plt.ylabel("Fraction de changement d'arêtes (Rho)")
+
+        plt.plot(timestamps, self.threshold, 'k--', label="Seuil de détection")
+
+         # Athlétisme
+        ground_truth_fades = [12, 41]  # En secondes
+        ground_truth_cuts = [17, 24, 32]  # En secondes
+
+        # Soccer
+        # ground_truth_fades = [19.167, 49.234, 61.2]  # En secondes
+        # ground_truth_cuts = [
+        #     2.3, 4.5, 8.8, 10.7, 12.033, 13.1, 14.667,
+        #     19.534, 21.434, 27.333, 32.467, 33.967,
+        #     37.7, 38.7, 45.267, 46.734, 61.4, 66.0,
+        #     71.0, 72.633, 77.734, 79.734, 85.2, 87.034,
+        #     89.4, 91.367, 93.433, 93.767, 99.367
+        # ]  # En secondes
+
+        for gt_fade in ground_truth_fades:
+            plt.axvline(gt_fade, color='green', linestyle='--', label="Ground Truth - Fondu" if 'Ground Truth - Fondu' not in plt.gca().get_legend_handles_labels()[1] else "")
+
+        for gt_cut in ground_truth_cuts:
+            plt.axvline(gt_cut, color='purple', linestyle='--', label="Ground Truth - Coupure" if 'Ground Truth - Coupure' not in plt.gca().get_legend_handles_labels()[1] else "")
+
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
 def main():
     video_path = "../VideodataTP3/Athletisme.mp4"
     edge_detector = EdgeDetector(Verbose=True)
     edge_detector.detect_transitions(video_path)
-    
+
     # Récupération des fondues et coupures
     fades, cuts = edge_detector.get_transitions()
 
@@ -149,6 +185,6 @@ def main():
     print("\nCoupures détectées :")
     for cut in cuts:
         print(f"- Coupure détectée à {cut[0]:.2f} secondes.")
-        
+
 if __name__ == "__main__":
     main()
