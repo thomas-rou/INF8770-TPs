@@ -3,27 +3,13 @@ from histogramDetection import HistogramBasedDetector
 
 class Combiner:
     def __init__(self, edge_detector, histogram_detector, tolerance=0.1):
-        """
-        Initialise le combinateur pour fusionner les transitions détectées.
-        :param edge_detector: Instance de la classe EdgeDetector.
-        :param histogram_detector: Instance de la classe HistogramBasedDetector.
-        :param tolerance: Tolérance en secondes pour comparer les détections proches.
-        """
         self.edge_detector = edge_detector
         self.histogram_detector = histogram_detector
         self.tolerance = tolerance
 
     def prioritize_fades(self, edge_fades, histogram_fades):
-        """
-        Priorise les fondues détectées par EdgeDetection.
-        :param edge_fades: Liste des fondues détectées par EdgeDetection (start_time, end_time).
-        :param histogram_fades: Liste des fondues détectées par HistogramBasedDetector (start_time, end_time).
-        :return: Liste combinée de fondues avec priorité à EdgeDetection.
-        """
-        # Commence avec les fondues d'EdgeDetection
         prioritized_fades = edge_fades[:]
 
-        # Ajoute seulement les fondues uniques d'Histogram
         for fade in histogram_fades:
             if not any(abs(fade[0] - e[0]) < self.tolerance and abs(fade[1] - e[1]) < self.tolerance for e in edge_fades):
                 prioritized_fades.append(fade)
@@ -31,11 +17,8 @@ class Combiner:
         return prioritized_fades
 
     def merge_cuts(self, edge_cuts, histogram_cuts):
-        """
-        Fusionne les coupures détectées par EdgeDetection et HistogramBasedDetector.
-        """
         all_cuts = edge_cuts + histogram_cuts
-        all_cuts.sort(key=lambda x: x[0])  # Trie par temps
+        all_cuts.sort(key=lambda x: x[0])
 
         merged_cuts = []
         for cut in all_cuts:
@@ -45,14 +28,10 @@ class Combiner:
         return merged_cuts
 
     def compare_results(self, edge_transitions, histogram_transitions):
-        """
-        Compare les transitions détectées par EdgeDetection et HistogramBasedDetector.
-        """
         both_detected = []
         edge_only = []
         histogram_only = []
 
-        # Compare chaque transition d'Edge avec Histogram
         for edge in edge_transitions:
             found = False
             for histogram in histogram_transitions:
@@ -63,7 +42,6 @@ class Combiner:
             if not found:
                 edge_only.append(edge)
 
-        # Ajoute les détections uniques d'Histogram
         for histogram in histogram_transitions:
             if not any(abs(histogram[0] - edge[0]) < self.tolerance for edge in edge_transitions):
                 histogram_only.append(histogram)
@@ -71,9 +49,6 @@ class Combiner:
         return both_detected, edge_only, histogram_only
 
     def process_video(self, video_path):
-        """
-        Exécute les deux détecteurs sur la vidéo et produit un compte-rendu.
-        """
         self.edge_detector.reset()
         self.histogram_detector.reset()
 
