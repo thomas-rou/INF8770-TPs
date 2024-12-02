@@ -2,13 +2,23 @@ import cv2
 import numpy as np
 
 class HistogramBasedDetector:
-    def __init__(self, threshold_cut=0.5, threshold_effect=0.2, bins=16):
+    def __init__(self, threshold_cut=0.5, threshold_effect=0.2, bins=16, Verbose=False):
         self.threshold_cut = threshold_cut
         self.threshold_effect = threshold_effect
         self.bins = bins
         self.min_frame_gap = 0
         self.previous_histogram = None
         self.last_transition_frame = -self.min_frame_gap
+        self.Verbose = Verbose
+        self.transitions = []
+
+    def reset(self):
+        """
+        Réinitialise les données internes pour une nouvelle exécution.
+        """
+        self.previous_histogram = None
+        self.last_transition_frame = -self.min_frame_gap
+        self.transitions = []
 
     def calculate_histogram(self, frame):
         histogram = []
@@ -45,17 +55,20 @@ class HistogramBasedDetector:
     def process_video(self, video_path):
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            print(f"Erreur : Impossible de lire la vidéo '{video_path}'")
+            if self.Verbose:
+                print(f"Erreur : Impossible de lire la vidéo '{video_path}'")
             return []
 
         fps = cap.get(cv2.CAP_PROP_FPS)
         self.min_frame_gap = int(fps)
         self.last_transition_frame = -self.min_frame_gap
-        print(f"FPS de la vidéo : {fps:.2f}")
+        if self.Verbose:
+            print(f"FPS de la vidéo : {fps:.2f}")
         frame_count = 0
-        transitions = []
+        self.transitions = []  # Réinitialiser les transitions
 
-        print("Début du traitement de la vidéo...")
+        if self.Verbose:
+            print("Début du traitement de la vidéo...")
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -67,20 +80,40 @@ class HistogramBasedDetector:
 
             if transition:
                 timestamp = frame_count / fps
-                transitions.append((timestamp, transition))
-                print(f"Transition détectée ({transition}) à {timestamp:.2f} secondes.")
+                self.transitions.append((frame_count, transition, timestamp))
+                if self.Verbose:
+                    print(f"Transition détectée ({transition}) à {timestamp:.2f} secondes.")
 
             frame_count += 1
 
         cap.release()
-        print("Nombre de transitions détectées :", len(transitions))
-        print("Fin du traitement.")
-        return transitions
-    
-def main():
-    detector = HistogramBasedDetector(threshold_cut=0.6, threshold_effect=0.3, bins=16)
+        if self.Verbose:
+            print("Nombre de transitions détectées :", len(self.transitions))
+            print("Fin du traitement.")
+        return self.transitions
 
-    detector.process_video("../VideodataTP3/Soccer.mp4")
-        
+    def get_transitions(self):
+        """
+        Retourne séparément toutes les fondues et coupures détectées.
+        """
+        fades = [(t[2], t[2]) for t in self.transitions if t[1] == "Effet"]
+        cuts = [(t[2], t[2]) for t in self.transitions if t[1] == "Coupure"]
+        return fades, cuts
+
+def main():
+    detector = HistogramBasedDetector(threshold_cut=0.53, threshold_effect=0.25, bins=16, Verbose=True)
+
+    detector.process_video("../VideodataTP3/Athletisme.mp4")
+
+    fades, cuts = detector.get_transitions()
+
+    print("\nFondues détectées :")
+    for fade in fades:
+        print(f"- Fondu détecté entre {fade[0]:.2f} secondes et {fade[1]:.2f} secondes.")
+
+    print("\nCoupures détectées :")
+    for cut in cuts:
+        print(f"- Coupure détectée à {cut[0]:.2f} secondes.")
+
 if __name__ == "__main__":
     main()
