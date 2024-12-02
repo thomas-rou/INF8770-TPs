@@ -137,20 +137,31 @@ class EdgeDetector:
         plt.plot(timestamps, self.rho_out, 'o', label="Rho Out", color="red")
         #plt.plot(timestamps, self.rho_max, 's', label="Rho Max", color="green")
 
-        plt.title("Évolution des fractions de changement d'arêtes (Rho) entre frames successives")
+        plt.title("Évolution des fractions de changement d'arêtes (Rho) entre trames successives")
         plt.xlabel("Temps (secondes)")
         plt.ylabel("Fraction de changement d'arêtes (Rho)")
 
         plt.plot(timestamps, self.threshold, 'k--', label="Seuil de détection")
 
-        ground_truth = {
-            "Fondu": [12, 41],
-            "Coupure": [17, 24, 32]
-        }
+         # Athlétisme
+        ground_truth_fades = [12, 41]  # En secondes
+        ground_truth_cuts = [17, 24, 32]  # En secondes
 
-        for gt_type, times in ground_truth.items():
-            for t in times:
-                plt.axvline(t, color="green" if gt_type == "Fondu" else "purple", linestyle="--", label=f"{gt_type} Ground Truth" if t == times[0] else "")
+        # Soccer
+        # ground_truth_fades = [19.167, 49.234, 61.2]  # En secondes
+        # ground_truth_cuts = [
+        #     2.3, 4.5, 8.8, 10.7, 12.033, 13.1, 14.667,
+        #     19.534, 21.434, 27.333, 32.467, 33.967,
+        #     37.7, 38.7, 45.267, 46.734, 61.4, 66.0,
+        #     71.0, 72.633, 77.734, 79.734, 85.2, 87.034,
+        #     89.4, 91.367, 93.433, 93.767, 99.367
+        # ]  # En secondes
+
+        for gt_fade in ground_truth_fades:
+            plt.axvline(gt_fade, color='green', linestyle='--', label="Ground Truth - Fondu" if 'Ground Truth - Fondu' not in plt.gca().get_legend_handles_labels()[1] else "")
+
+        for gt_cut in ground_truth_cuts:
+            plt.axvline(gt_cut, color='purple', linestyle='--', label="Ground Truth - Coupure" if 'Ground Truth - Coupure' not in plt.gca().get_legend_handles_labels()[1] else "")
 
         plt.legend()
         plt.grid(True)
