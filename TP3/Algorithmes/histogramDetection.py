@@ -48,7 +48,7 @@ class HistogramBasedDetector:
             return "Coupure"
         elif distance > self.threshold_effect:
             self.last_transition_frame = frame_count
-            return "Effet"
+            return "Fondu"
         else:
             return None
 
@@ -82,7 +82,7 @@ class HistogramBasedDetector:
                 timestamp = frame_count / fps
                 self.transitions.append((frame_count, transition, timestamp))
                 if self.Verbose:
-                    print(f"Transition détectée ({transition}) à {timestamp:.2f} secondes.")
+                    print(f"{transition} à la frame {frame_count} ({frame_count / fps:.2f} s)")
 
             frame_count += 1
 

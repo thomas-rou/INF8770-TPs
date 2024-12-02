@@ -136,10 +136,10 @@ class Combiner:
         }
 
 def main():
-    video_path = "../VideodataTP3/Soccer.mp4"
+    video_path = "../VideodataTP3/Athletisme.mp4"
 
-    edge_detector = EdgeDetector(Verbose=False)
-    histogram_detector = HistogramBasedDetector(threshold_cut=0.6, threshold_effect=0.3, bins=16, Verbose=False)
+    edge_detector = EdgeDetector(Verbose=True)
+    histogram_detector = HistogramBasedDetector(threshold_cut=0.6, threshold_effect=0.3, bins=16, Verbose=True)
 
     combiner = Combiner(edge_detector, histogram_detector, tolerance=0.3)
 

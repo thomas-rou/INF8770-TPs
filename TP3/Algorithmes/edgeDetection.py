@@ -90,7 +90,7 @@ class EdgeDetector:
                         transition_type = "Coupure"
                         self.transitions.append((frame_count, frame_count, transition_type, frame_count / fps, frame_count / fps))
                         if self.Verbose:
-                            print(f"Transition détectée : {transition_type} à la frame {frame_count} ({frame_count / fps:.2f} s)")
+                            print(f"{transition_type} à la frame {frame_count} ({frame_count / fps:.2f} s)")
                         last_transition_frame = frame_count
                         cut_count += 1
                         fade_start_frame = None
@@ -104,7 +104,7 @@ class EdgeDetector:
                     transition_type = "Fondu"
                     self.transitions.append((fade_start_frame, frame_count, transition_type, fade_start_frame / fps, frame_count / fps))
                     if self.Verbose:
-                        print(f"Transition détectée : {transition_type} de la frame {fade_start_frame} à la frame {frame_count} ({fade_start_frame / fps:.2f} s - {frame_count / fps:.2f} s)")
+                        print(f"{transition_type} de la frame {fade_start_frame} à la frame {frame_count} ({fade_start_frame / fps:.2f} s - {frame_count / fps:.2f} s)")
                     fade_count += 1
                     fade_start_frame = None
                     last_transition_frame = frame_count
