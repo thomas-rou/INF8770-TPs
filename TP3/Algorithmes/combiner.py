@@ -127,6 +127,13 @@ class Combiner:
         for t in histogram_only:
             print(f"- Transition détectée à {t[0]:.2f} secondes.")
 
+        print("\nRésultats combinés :")
+        for t in prioritized_fades:
+            print(f"- Fondu priorisé détecté entre {t[0]:.2f} secondes et {t[1]:.2f} secondes.")
+        for t in merged_cuts:
+            print(f"- Coupure fusionnée détectée à {t[0]:.2f} secondes.")
+
+
         return {
             "both_detected": both_detected,
             "edge_only": edge_only,
@@ -136,7 +143,7 @@ class Combiner:
         }
 
 def main():
-    video_path = "../VideodataTP3/Athletisme.mp4"
+    video_path = "../VideodataTP3/Soccer.mp4"
 
     edge_detector = EdgeDetector(Verbose=True)
     histogram_detector = HistogramBasedDetector(threshold_cut=0.6, threshold_effect=0.3, bins=16, Verbose=True)
