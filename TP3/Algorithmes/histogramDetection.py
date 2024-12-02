@@ -16,9 +16,6 @@ class HistogramBasedDetector:
         self.timestamps = []
 
     def reset(self):
-        """
-        Réinitialise les données internes pour une nouvelle exécution.
-        """
         self.previous_histogram = None
         self.last_transition_frame = -self.min_frame_gap
         self.transitions = []
@@ -101,18 +98,12 @@ class HistogramBasedDetector:
         return self.transitions
 
     def get_transitions(self):
-        """
-        Retourne séparément toutes les fondues et coupures détectées.
-        """
         fades = [(t[2], t[2]) for t in self.transitions if t[1] == "Effet"]
         cuts = [(t[2], t[2]) for t in self.transitions if t[1] == "Coupure"]
         return fades, cuts
 
 
     def plot_distances(self):
-        """
-        Plot the distances between consecutive frames.
-        """
         plt.figure(figsize=(10, 5))
         plt.plot(self.timestamps, self.distances, label='Distance euclidienne entre les histogrammes')
          # Athlétisme
